@@ -1,4 +1,4 @@
-<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 15.5 – TEST</title>
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 15.6 – TEST</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
 select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
 .chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
@@ -158,7 +158,7 @@ window.addEventListener('DOMContentLoaded', function () {
       status.textContent='Zaptec-forbindelse oprettet. Henter ladehistorik…';
       history.replaceChildren();
       const heading=document.createElement('h3');heading.textContent='Ladehistorik · seneste 30 dage';history.appendChild(heading);
-      let energyTotal=0, pricedKwh=0, costTotal=0, count=0, incomplete=false;
+      let energyTotal=0, pricedKwh=0, costTotal=0, count=0, incomplete=false; const entries=[]; let sessionsWithDetails=0, detailPoints=0, sessionsWithoutDetails=0;
       for(const charger of list.chargers||[]){
         if(!/^[0-9a-f-]{36}$/i.test(charger.id))continue;
         const now=new Date(),from=new Date(now.getTime()-30*86400000);
@@ -173,9 +173,9 @@ window.addEventListener('DOMContentLoaded', function () {
           for(const item of hd.sessions||[]){
             if(item.voided||!Number.isFinite(item.energyKWh))continue;
             energyTotal+=item.energyKWh;count++;
-            const line=document.createElement('p');
-            line.textContent=new Date(item.startTime).toLocaleString('da-DK')+' · '+item.energyKWh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';
-            history.appendChild(line);
+            const validDetails=Array.isArray(item.energyDetails)?item.energyDetails.filter(p=>p&&Number.isFinite(Date.parse(p.timestamp))&&Number.isFinite(p.energyKWh)):[];
+            if(validDetails.length){sessionsWithDetails++;detailPoints+=validDetails.length;}else sessionsWithoutDetails++;
+            let sessionCost=null;
             // Estimat: jævnt forbrug gennem sessionen. Kun beregnet hvis alle timepriser findes.
             const start=Date.parse(item.startTime),end=Date.parse(item.endTime);
             if(Number.isFinite(start)&&Number.isFinite(end)&&end>start&&end-start<=48*3600000){
@@ -187,9 +187,10 @@ window.addEventListener('DOMContentLoaded', function () {
                 if(!match)break;
                 weighted+=totalPrice(match.spot,hour)*(next-t);covered+=next-t;t=next;
               }
-              if(covered===end-start){pricedKwh+=item.energyKWh;costTotal+=item.energyKWh*weighted/(end-start);}
+              if(covered===end-start){pricedKwh+=item.energyKWh;sessionCost=item.energyKWh*weighted/(end-start);costTotal+=sessionCost;}
               else incomplete=true;
             }else incomplete=true;
+            entries.push({item,sessionCost});
           }
           if(!hd.hasMore)break;
           if(!hd.cursor)throw Error('Zaptec mangler cursor til næste side');
@@ -197,12 +198,26 @@ window.addEventListener('DOMContentLoaded', function () {
           if(page===9)incomplete=true;
         }
       }
+      const diagnostic=document.createElement('p');
+      diagnostic.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
+      diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
+      history.appendChild(diagnostic);
+      entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
+      const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
+      for(const {item,sessionCost} of entries){
+        const row=document.createElement('div');row.style.cssText='padding:13px 0;border-bottom:1px solid #ffffff22;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap';
+        const left=document.createElement('div');const date=document.createElement('strong');date.textContent=new Date(item.startTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(date);
+        const detail=document.createElement('div');detail.style.cssText='opacity:.75;font-size:13px;margin-top:4px';detail.textContent='Slut: '+new Date(item.endTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(detail);
+        const right=document.createElement('div');right.style.textAlign='right';const kwh=document.createElement('strong');kwh.textContent=item.energyKWh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';right.appendChild(kwh);
+        const price=document.createElement('div');price.style.cssText='font-size:13px;margin-top:4px';price.textContent=sessionCost===null?'Pris mangler':money(sessionCost)+' · estimeret';right.appendChild(price);
+        row.append(left,right);history.appendChild(row);
+      }
       const summary=document.createElement('p');summary.style.fontWeight='800';
       summary.textContent=count+' opladninger · '+energyTotal.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';
       history.insertBefore(summary,history.children[1]||null);
       const cost=document.createElement('p');
       cost.textContent=pricedKwh>0?'Estimeret pris for '+pricedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh med kendte timepriser: '+costTotal.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+' (jævnt fordelt forbrug)':'Pris kan endnu ikke beregnes: mangler historiske timepriser.';
-      history.appendChild(cost);
+      history.insertBefore(cost,history.children[2]||null);
       if(incomplete||pricedKwh<energyTotal){const note=document.createElement('p');note.textContent='Bemærk: Prisen dækker ikke alle opladninger. Manglende historiske timepriser er ikke erstattet med gæt.';history.appendChild(note);}
       status.textContent='Ladehistorik hentet fra Zaptec.';
     } catch(error){status.textContent=error.message;session=null;form.hidden=false;logout.hidden=true;}
