@@ -186,7 +186,7 @@ function updateAccuracy(){
  $("stat28").style.borderColor=statsDays===28?"#38bdf8":"#64748b";
 }
 $("accuracyBtn").addEventListener("click",()=>{$("accuracyDialog").showModal()});$("accuracyClose").addEventListener("click",()=>$("accuracyDialog").close());$("stat7").addEventListener("click",()=>{statsDays=7;updateAccuracy()});$("stat28").addEventListener("click",()=>{statsDays=28;updateAccuracy()});
-async function load(){try{let r=await fetch("/Elprisv2/prices.json?"+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("prices.json mangler");let d=await r.json(),a=(d.hours||[]).map(x=>{let t=new Date(x.time),spot=+x.price;return {t,spot,p:totalPrice(spot,t)}}).sort((a,b)=>a.t-b.t);if(!a.length)throw Error("ingen priser");const forecastRows=await getForecast();let n=new Date();
+async function load(){try{let r=await fetch("/Elprisv2/prices.json?"+Date.now(),{cache:"no-store"}).then(r=>r.ok?r:fetch("./prices.json?"+Date.now(),{cache:"no-store"})).catch(()=>fetch("./prices.json?"+Date.now(),{cache:"no-store"}));if(!r.ok)throw Error("prices.json mangler");let d=await r.json(),a=(d.hours||[]).map(x=>{let t=new Date(x.time),spot=+x.price;return {t,spot,p:totalPrice(spot,t)}}).sort((a,b)=>a.t-b.t);if(!a.length)throw Error("ingen priser");const forecastRows=await getForecast();let n=new Date();
 // Gem den senest observerede prognose indtil en officiel pris findes for timen.
 // Gem spotpris (ikke totalpris), så markøren følger brugerens valgte elselskab.
 const archive=await getArchive(),forecastArchive={},officialTimes=new Set(a.map(x=>x.t.getTime()));
