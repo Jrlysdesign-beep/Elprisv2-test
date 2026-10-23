@@ -42,7 +42,12 @@ export async function fetchZaptecHistoricalSpot(start,end,fetcher=fetch,storage=
   });
   const response=await fetcher('https://elpris-zaptec-github.jrlysdesign.workers.dev/api/prices/history?'+params.toString(),
     {cache:'no-store'});
-  if(!response.ok)throw Error('Historiske spotpriser kunne ikke hentes (HTTP '+response.status+')');
+  if(!response.ok){
+    let detail='';
+    try{const body=await response.json();detail=[body.error,body.diagnostic].filter(Boolean).join(' · ');}
+    catch(e){}
+    throw Error('Historiske spotpriser: HTTP '+response.status+(detail?' · '+detail:''));
+  }
   const data=await response.json();
   const rows=parseHistoricalSpotRecords(data.records).filter(p=>p.hour>=first&&p.hour<last);
   if(!rows.length)throw Error('Ingen historiske DK2-timepriser returneret');
