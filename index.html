@@ -118,7 +118,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 15.5 · 23.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 15.9 · 23.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -223,6 +223,15 @@ window.addEventListener('DOMContentLoaded', function () {
       diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
       diagnostic.textContent+=' Fortolkningstest (tolerance 2 % eller 0,15 kWh): '+energyDiagnostics.incremental+' passer med intervalforbrug, '+energyDiagnostics.cumulative+' passer med kumulative målinger, '+energyDiagnostics.ambiguous+' er tvetydige, '+energyDiagnostics.unmatched+' matcher ikke, '+energyDiagnostics.insufficient+' har for få punkter. Ingen priser beregnes ud fra punkterne endnu.';
       history.appendChild(diagnostic);
+      // Privatlivssikker tidsdiagnose. Viser kun antal og median, aldrig rå data.
+      try {
+        const {diagnoseTimestampBoundaries}=await import('./zaptec-timestamp-diagnostics.mjs');
+        const result=diagnoseTimestampBoundaries(entries.map(x=>x.item));
+        const p=document.createElement('p');
+        p.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
+        p.textContent='Tidsstempelkontrol: '+result.sessions+' opladninger kan analyseres. Første punkt tæt på ladestart: '+result.firstNearStart+'. Sidste punkt tæt på ladeslut: '+result.lastNearEnd+'. Begge: '+result.bothNear+'. Ingen af delene: '+result.neitherNear+'. Median mellem målepunkter: '+(result.typicalSpacingMinutes===null?'ukendt':result.typicalSpacingMinutes+' minutter')+'. '+result.invalid+' kan ikke analyseres. Dette er kun en diagnose og fastslår ikke, om energi hører til før eller efter tidsstemplet.';
+        history.appendChild(p);
+      } catch { const p=document.createElement('p');p.textContent='Tidsstempelkontrol kunne ikke indlæses.';history.appendChild(p); }
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
       for(const {item,sessionCost} of entries){
