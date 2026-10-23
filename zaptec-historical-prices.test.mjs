@@ -22,8 +22,8 @@ test('rejects incomplete paginated data',async()=>{
 test('cached result reused without refetch',async()=>{
  let calls=0,cache=null;
  const storage={getItem:()=>cache,setItem:(k,v)=>{cache=v}};
- const fetcher=async()=>{calls++;return {ok:true,json:async()=>({total:1,records:[
- {TimeUTC:'2026-10-01T00:00:00',PriceArea:'DK2',DayAheadPriceDKK:900}]})}};
+ const fetcher=async()=>{calls++;return {ok:true,json:async()=>({total:4,records:[
+ ...[0,15,30,45].map(m=>({TimeUTC:'2026-10-01T00:'+String(m).padStart(2,'0')+':00',PriceArea:'DK2',DayAheadPriceDKK:900}))]})}};
  const start=Date.parse('2026-10-01T00:00Z'),end=Date.parse('2026-10-02T00:00Z');
  await fetchZaptecHistoricalSpot(start,end,fetcher,storage);
  await fetchZaptecHistoricalSpot(start,end,fetcher,storage);
