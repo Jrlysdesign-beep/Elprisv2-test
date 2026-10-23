@@ -1,7 +1,7 @@
 // Historical DK2 spot prices for Zaptec test only. No personal Zaptec data is sent.
 // Energi Data Service: SpotPriceDKK is DKK/MWh, HourUTC is UTC without suffix.
 // Cache successful responses locally for 24 hours to avoid repeated upstream requests.
-const KEY='elprisZaptecHistoricalDK2V2';
+const KEY='elprisZaptecHistoricalDK2V3';
 export function parseHistoricalSpotRecords(records){
   if(!Array.isArray(records))throw Error('Ugyldigt prisdatasæt');
   const quarters=new Map();
@@ -37,13 +37,10 @@ export async function fetchZaptecHistoricalSpot(start,end,fetcher=fetch,storage=
        Array.isArray(cache.rows))return {rows:cache.rows,source:'lokalt cachet'};
   }catch(e){}
   const params=new URLSearchParams({
-    start:new Date(first-86400000).toISOString().slice(0,16),
-    end:new Date(last+86400000).toISOString().slice(0,16),
-    filter:JSON.stringify({PriceArea:['DK2']}),
-    columns:'TimeUTC,PriceArea,DayAheadPriceDKK',
-    limit:'5000'
+    start:new Date(first).toISOString().slice(0,10),
+    end:new Date(last).toISOString().slice(0,10)
   });
-  const response=await fetcher('https://api.energidataservice.dk/dataset/DayAheadPrices?'+params.toString(),
+  const response=await fetcher('https://elpris-zaptec-github.jrlysdesign.workers.dev/api/prices/history?'+params.toString(),
     {cache:'no-store'});
   if(!response.ok)throw Error('Historiske spotpriser kunne ikke hentes (HTTP '+response.status+')');
   const data=await response.json();
