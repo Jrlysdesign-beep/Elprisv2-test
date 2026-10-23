@@ -161,6 +161,7 @@ window.addEventListener('DOMContentLoaded', function () {
       // Zaptec-only historical DK2 price lookup; does not change the chart's 72-hour window.
       let zaptecPriceHours=priceHours.filter(p=>p&&p.t instanceof Date&&!p.forecast);
       let historicalPriceStatus='Historiske DK2-priser: ikke indlæst.';
+      let zaptecQuarterSpots=[];
       try {
         const {fetchZaptecHistoricalSpot}=await import('./zaptec-historical-prices.mjs?v=15.21');
         const now=Date.now();
@@ -177,7 +178,7 @@ window.addEventListener('DOMContentLoaded', function () {
             byHour.set(hour,{t:new Date(hour),spot:values.reduce((a,b)=>a+b,0)/4,forecast:false});
         }
         // Preserve real quarter-hour prices for Zaptec calculations; hourly chart remains unchanged.
-        window.__zaptecQuarterSpots=result.rows;
+        zaptecQuarterSpots=result.rows;
         zaptecPriceHours=[...byHour.values()].sort((a,b)=>a.t-b.t);
         historicalPriceStatus='Historiske DK2-spotpriser: '+result.rows.length+
           ' kvarterer hentet fra '+result.source+'. Kilde: Energi Data Service via Cloudflare, DayAheadPrices (originale kvarterspriser gemmes til Zaptec, timevisningen bruger gennemsnit; DKK/MWh til kr./kWh). '+
@@ -354,6 +355,16 @@ window.addEventListener('DOMContentLoaded', function () {
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Forsigtig Zaptec-prisberegning kunne ikke indlæses: '+String(error.message||error);
+        history.appendChild(p);
+      }
+      // Quarter-hour spot-price diagnostic: no invented quarter-hour consumption.
+      if(zaptecQuarterSpots.length){
+        const p=document.createElement('p');
+        p.style.cssText='padding:10px;border:1px solid #ffffff55;border-radius:8px;font-size:13px';
+        p.textContent='15-minutters elpriser: '+zaptecQuarterSpots.length+
+          ' faktiske DK2-kvarterspriser indlæst. Timevisningen er fortsat et gennemsnit. '+
+          'Vi kan først beregne præcis kvarterspris for opladning, når Zaptec leverer målinger, der kan knyttes entydigt til hvert kvarter. '+
+          'Laderens rapporteringsinterval er ikke ændret.';
         history.appendChild(p);
       }
       // Partial prices are explicitly not full-session prices.
