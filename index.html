@@ -158,7 +158,7 @@ window.addEventListener('DOMContentLoaded', function () {
       status.textContent='Zaptec-forbindelse oprettet. Henter ladehistorik…';
       history.replaceChildren();
       const heading=document.createElement('h3');heading.textContent='Ladehistorik · seneste 30 dage';history.appendChild(heading);
-      let energyTotal=0, pricedKwh=0, costTotal=0, count=0, incomplete=false; const entries=[];
+      let energyTotal=0, pricedKwh=0, costTotal=0, count=0, incomplete=false; const entries=[]; let sessionsWithDetails=0, detailPoints=0, sessionsWithoutDetails=0;
       for(const charger of list.chargers||[]){
         if(!/^[0-9a-f-]{36}$/i.test(charger.id))continue;
         const now=new Date(),from=new Date(now.getTime()-30*86400000);
@@ -173,6 +173,8 @@ window.addEventListener('DOMContentLoaded', function () {
           for(const item of hd.sessions||[]){
             if(item.voided||!Number.isFinite(item.energyKWh))continue;
             energyTotal+=item.energyKWh;count++;
+            const validDetails=Array.isArray(item.energyDetails)?item.energyDetails.filter(p=>p&&Number.isFinite(Date.parse(p.timestamp))&&Number.isFinite(p.energyKWh)):[];
+            if(validDetails.length){sessionsWithDetails++;detailPoints+=validDetails.length;}else sessionsWithoutDetails++;
             let sessionCost=null;
             // Estimat: jævnt forbrug gennem sessionen. Kun beregnet hvis alle timepriser findes.
             const start=Date.parse(item.startTime),end=Date.parse(item.endTime);
@@ -196,6 +198,10 @@ window.addEventListener('DOMContentLoaded', function () {
           if(page===9)incomplete=true;
         }
       }
+      const diagnostic=document.createElement('p');
+      diagnostic.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
+      diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
+      history.appendChild(diagnostic);
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
       for(const {item,sessionCost} of entries){
