@@ -1,0 +1,272 @@
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 15.0 – TEST</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
+select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
+.chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.chargeitem,.bestcharge{background:#0f172a;border-radius:14px;padding:12px}
+.bestcharge{margin-top:12px}.bigcost{font-size:34px;font-weight:900;margin-top:5px}.footer{text-align:center;opacity:.55;font-size:13px;padding:24px 8px 10px}@media(max-width:650px){.grid{grid-template-columns:1fr}.hours{height:255px;gap:3px;padding-bottom:32px;overflow-x:hidden}.h{flex:1 1 0;min-width:0}.hprice{font-size:10px}.htime{font-size:9px}.price{font-size:52px}}
+.h.selected{
+  outline:1.5px solid #fff;
+  outline-offset:2px;
+  filter:brightness(1.28);
+  z-index:5;
+  box-shadow:0 0 0 1px rgba(0,0,0,.25),0 0 8px rgba(255,255,255,.55);
+}
+
+.charthead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+#accuracyBtn{border:1px solid rgba(255,255,255,.28);border-radius:9px;background:rgba(255,255,255,.09);color:inherit;padding:7px 10px;cursor:pointer;font-size:12px;text-align:center;min-width:116px}#accuracyBtn strong{display:block;font-size:15px}#accuracyDialog{border:1px solid rgba(255,255,255,.24);border-radius:12px;background:#182536;color:white;padding:16px;max-width:min(90vw,370px);width:100%}#accuracyDialog::backdrop{background:rgba(0,0,0,.65)}.statrow{display:flex;justify-content:space-between;margin:12px 0}.statbuttons{display:flex;gap:8px;margin:12px 0}.statbuttons button{flex:1;padding:9px;border:1px solid #64748b;border-radius:8px;background:#334155;color:white}#backnow{border:1px solid rgba(255,255,255,.28);border-radius:9px;background:rgba(255,255,255,.09);color:inherit;padding:9px 11px;cursor:pointer;font-size:13px}
+#chartscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;scrollbar-width:thin}
+#chartscroll .hours{width:max-content;min-width:100%;overflow:visible;gap:4px}
+#chartscroll .h{flex:0 0 24px;min-width:24px}
+@media(max-width:650px){#chartscroll .hours{overflow:visible}#chartscroll .h{flex:0 0 19px;min-width:19px}}
+
+#chartscroll .h.forecast{opacity:.66;background-image:repeating-linear-gradient(135deg,transparent 0,transparent 5px,rgba(255,255,255,.32) 5px,rgba(255,255,255,.32) 7px)}
+#chartscroll .h.forecast.selected{opacity:1}
+
+/* Historiske priser er neutrale; kommende officielle priser beholder trafiklysfarver. */
+#chartscroll .h.past{background:#64748b!important;opacity:.72}
+#chartscroll .h.past:nth-child(3n){background:#475569!important}
+#chartscroll .h.past:nth-child(3n + 1){background:#94a3b8!important}
+/* Den aktuelle time er altid synlig, også når en anden søjle er valgt. */
+#chartscroll .h.current-hour{z-index:8;opacity:1}
+#chartscroll .h.current-hour::before{content:"NU";position:absolute;top:-25px;left:50%;transform:translateX(-50%);background:#fff;color:#0f172a;border-radius:5px;padding:2px 5px;font-size:10px;font-weight:900;white-space:nowrap}
+#chartscroll .h.current-hour .htime{color:#fff;font-weight:900;text-decoration:underline;text-underline-offset:3px}
+/* Ved valg af den aktuelle time bruges kun den normale valgramme. */
+
+/* V14.8.2: Begge betjeningsfelter har ens bredde og højde. */
+.chart-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;width:100%;align-items:stretch}
+.chart-controls #backnow,.chart-controls #accuracyBtn{box-sizing:border-box;width:100%;min-width:0;min-height:58px;margin:0;padding:7px 6px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;text-align:center}
+.chart-controls #backnow{font-size:13px}
+.chart-controls #accuracyBtn span{font-size:11px}
+.chart-controls #accuracyBtn strong{font-size:16px}
+.chart-controls #accuracyBtn small{font-size:10px;line-height:1.2}
+@media(max-width:370px){.chart-controls #backnow{font-size:12px}.chart-controls #accuracyBtn span{font-size:10px}}
+/* V14.5: Mere luft over søjlerne. Knappen ligger i sit eget område,
+   og højeste søjle samt NU-mærket kan ikke støde op mod den. */
+#chartscroll .hours{height:335px;padding-top:62px}
+@media(max-width:650px){#chartscroll .hours{height:310px;padding-top:62px}}
+/* Dagoverskrifter i samme vandrette scrolleområde som søjlerne. */
+#chartscroll .hours{position:relative;padding-bottom:60px}
+@media(max-width:650px){#chartscroll .hours{padding-bottom:60px}}
+#chartscroll .day-overlay{position:absolute;inset:0;pointer-events:none;z-index:10}
+#chartscroll .day-title{position:absolute;bottom:17px;transform:translateX(-50%);font-size:12px;font-weight:750;white-space:nowrap;color:#e2e8f0}
+#chartscroll .day-divider{position:absolute;top:6px;bottom:12px;width:1px;background:#fb7185;opacity:.85;transform:translateX(-0.5px)}
+#chartscroll .day-divider::after{content:"";position:absolute;top:0;left:-2px;width:5px;height:5px;border-radius:50%;background:#fb7185}
+
+/* V14.7: Blå vandret streg markerer den gemte prognose på officielle søjler. */
+#chartscroll .h .forecast-reference{position:absolute;left:0;right:0;height:1px;background:#38bdf8;z-index:6;pointer-events:none;box-shadow:0 0 1px rgba(56,189,248,.8)}
+#chartscroll .h .forecast-reference::before,#chartscroll .h .forecast-reference::after{content:none}
+/* Installationshjælp */
+.header-actions{display:flex;align-items:center;gap:12px}
+.help-button{width:35px;height:35px;border:1px solid rgba(255,255,255,.45);border-radius:50%;background:#334155;color:#fff;font-size:21px;font-weight:800;cursor:pointer;flex-shrink:0}
+.help-button:focus-visible,.help-close:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.help-overlay[hidden]{display:none}
+.help-overlay{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.help-dialog{background:#1e293b;border:1px solid #475569;color:#fff;border-radius:20px;padding:22px;width:min(100%,450px);max-height:88dvh;overflow-y:auto;box-shadow:0 18px 55px rgba(0,0,0,.5)}
+.help-top{display:flex;justify-content:space-between;align-items:center;gap:12px}.help-top h2{margin:0;font-size:22px}
+.help-close{background:#334155;color:white;border:0;border-radius:10px;font-size:22px;width:38px;height:38px;cursor:pointer}
+.help-dialog h3{font-size:17px;margin:18px 0 8px}.help-dialog ol{padding-left:24px;line-height:1.6;margin:6px 0}.help-dialog li{margin-bottom:6px}.help-dialog p{line-height:1.5;color:#cbd5e1;font-size:14px}.help-dialog strong{color:white}
+</style></head>
+<body><div class="help-overlay" id="installHelp" hidden>
+<div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle" tabindex="-1">
+<div class="help-top"><h2 id="helpTitle">📲 Få appen på hjemmeskærmen</h2><button type="button" id="helpClose" class="help-close" aria-label="Luk hjælp">×</button></div>
+<h3>🍎 iPhone (Safari)</h3>
+<ol><li>Åbn elpris-appen i <strong>Safari</strong>.</li><li>Tryk på <strong>Del</strong> (firkant med pil op). På nogle iPhones ligger knappen nederst, på andre i menuen.</li><li>Vælg <strong>Føj til hjemmeskærm</strong> (du skal måske rulle ned).</li><li>Tryk på <strong>Tilføj</strong>.</li></ol>
+<p>Hvis du åbnede linket inde i fx Facebook eller Messenger, skal du først vælge <strong>Åbn i Safari</strong>.</p>
+<h3>🤖 Android (Chrome)</h3>
+<ol><li>Åbn elpris-appen i <strong>Chrome</strong>.</li><li>Tryk på <strong>⋮</strong> (menuen øverst til højre).</li><li>Vælg <strong>Føj til startskærm</strong> eller <strong>Installer app</strong>.</li><li>Bekræft med <strong>Tilføj</strong> eller <strong>Installer</strong>.</li></ol>
+<p>Så får du et ikon på hjemmeskærmen, som åbner elpris-appen direkte. Menunavne kan variere lidt afhængigt af telefon og browserversion.</p>
+</div></div><div id="pullrefresh" style="position:fixed;top:-58px;left:50%;transform:translateX(-50%);z-index:9999;background:#1d2b3d;color:white;padding:10px 18px;border-radius:0 0 16px 16px;font:700 14px system-ui;transition:top .18s ease;box-shadow:0 4px 14px rgba(0,0,0,.25)">↓ Træk ned for at opdatere</div><div class="w"><header><div><div class="t">⚡ Elpris</div><div class="muted">DK2 · Sjælland</div></div><div class="header-actions"><b id="clock"></b><button type="button" class="help-button" id="helpOpen" aria-label="Hjælp til at installere appen" aria-haspopup="dialog" aria-controls="installHelp">?</button></div></header><div id="hero" class="hero"><b id="status">HENTER PRISDATA</b><div id="price" class="price">–</div><div>kr./kWh · inkl. elselskabstillæg, Radius, Energinet, elafgift og moms</div><div id="breakdown" class="muted" style="margin-top:8px"></div><div id="advice" class="advice">Et øjeblik…</div></div><div id="err"></div>
+<div class="grid"><div class="card"><div class="label">Billigste time</div><div id="cheap" class="val">–</div></div><div class="card"><div class="label">Vask / opvask</div><div id="wash" class="val">–</div></div><div class="card"><div class="label">Elbil · billigste 4 timer</div><div id="car" class="val">–</div></div></div>
+<div class="card"><div class="label">⚡ Elselskab / elaftale</div>
+<select id="supplier">
+<option value="andel">Andel Energi · FlexEnergi</option>
+<option value="ok">OK · El Højt Forbrug</option>
+<option value="elforbundet">Vindstød · Elforbundet 2026</option>
+</select>
+<div id="supplierinfo" class="muted" style="margin-top:9px;font-size:13px"></div></div>
+<div class="card"><div class="label">🚗 Hvad koster opladningen?</div>
+<select id="carselect"><option value="buzz">VW ID. Buzz · 86 kWh</option><option value="e2008">Peugeot e-2008 · 46,3 kWh brugbar</option><option value="q4">Audi Q4 e-tron 45 · 77 kWh</option><option value="e5008">Peugeot E-5008 · 73 kWh</option></select>
+<div class="chargegrid"><div class="chargeitem"><div class="label">Startniveau</div><select id="startpct"><option>0</option><option selected>10</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option><option>70</option><option>80</option><option>90</option></select></div><div class="chargeitem"><div class="label">Slutniveau</div><select id="endpct"><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option><option>70</option><option selected>80</option><option>90</option><option>100</option></select></div></div>
+<div class="chargegrid"><div class="chargeitem"><div id="rangeLabel" class="label">10 → 80 %</div><div id="chargeEnergy" class="val">–</div></div><div class="chargeitem"><div class="label">Fra elnettet inkl. 10 % ladetab</div><div id="gridEnergy" class="val">–</div></div><div class="chargeitem"><div class="label">Ladetid ved 10 kW</div><div id="chargeTime" class="val">–</div></div><div class="chargeitem"><div class="label">Pris ved start nu</div><div id="chargeNow" class="bigcost">–</div></div></div>
+<div class="bestcharge"><div class="label">💡 Billigste start inden for de næste 24 timer</div><div id="chargeBest" class="val">–</div><div id="chargeSave" class="muted"></div></div></div>
+<div class="card"><div class="charthead"><div class="label">Elpriser · swipe for tidligere og kommende timer</div><div class="chart-controls"><button id="backnow" type="button">↩ Tilbage til nu</button><button id="accuracyBtn" type="button" aria-label="Vis prognosestatistik"><span>Prognoseafvigelse</span><strong id="accuracyValue">–</strong><small id="accuracyDirection">Afventer sammenligning</small></button></div></div><div id="chartscroll"><div id="hours" class="hours"></div></div><div id="chartnote" class="muted" style="font-size:12px;margin-top:8px"></div><div id="spotdetail" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.05);text-align:center"></div></div><p class="muted" style="text-align:center">⚪ Grå = historik · ⚪ NU = aktuel time · 🟢 under 1,00 kr. · 🟡 1,00–1,99 kr. · 🔴 fra 2,00 kr. · skraveret = prognose · 🔵 blå streg = tidligere estimat</p><dialog id="accuracyDialog"><div style="display:flex;align-items:center;justify-content:space-between"><strong>Prognosernes præcision</strong><button type="button" id="accuracyClose" style="background:transparent;color:white;border:0;font-size:24px">×</button></div><div class="statbuttons"><button id="stat7" type="button">7 dage</button><button id="stat28" type="button">28 dage</button></div><div id="accuracyDetails"></div><p style="font-size:12px;opacity:.75">Afvigelsen er den samlede absolutte prisforskel divideret med summen af de faktiske samlede elpriser. Kun prognoser gemt før officiel offentliggørelse tæller. Data gemmes kun på denne enhed og kan slettes af browseren.</p></dialog><section id="zaptecFeature" hidden style="margin-top:20px"><div class="card"><h2>🔌 Min Zaptec</h2><p>Zaptec-forbindelsen er endnu ikke aktiveret. Her vises ladeforbrug og udgifter, når sikker kontoforbindelse er klar.</p><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><div><div class="label">Seneste døgn</div><div class="val">–</div></div><div><div class="label">Indeværende måned</div><div class="val">–</div></div><div><div class="label">Sidste hele måned</div><div class="val">–</div></div><div><div class="label">År til dato</div><div class="val">–</div></div></div><p>Gennemsnit pr. måned, seneste år: –</p></div></section><div class="footer">Version 15.0 · 23.10.2026 · Lavet af Jacob Rasmussen</div></div>
+<script>
+// Isoleret Zaptec-modul: fejl her må aldrig forhindre indlæsning af elpriser.
+window.addEventListener('DOMContentLoaded', function () {
+  try {
+    const btn = document.getElementById('helpOpen');
+    const panel = document.getElementById('zaptecFeature');
+    if (!btn || !panel) return;
+    const settings = document.createElement('div');
+    settings.id = 'zaptecSettings';
+    settings.hidden = true;
+    settings.className = 'card';
+    settings.innerHTML = '<h3>⚙️ Indstillinger</h3><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="zaptecToggle" style="width:20px;height:20px"> Vis Min Zaptec</label><p>Din installationsvejledning åbnes stadig med spørgsmålstegnet. Zaptec-login bliver først tilføjet med sikker serverintegration.</p>';
+    btn.closest('header')?.insertAdjacentElement('afterend',settings);
+    const gear = document.createElement('button');
+    gear.type = 'button';
+    gear.textContent = '⚙';
+    gear.setAttribute('aria-label','Indstillinger');
+    gear.style.cssText='margin-left:8px;border-radius:50%;background:#334155;color:white;border:1px solid #94a3b8;padding:8px;font-size:18px';
+    btn.insertAdjacentElement('afterend',gear);
+    gear.addEventListener('click',()=>{settings.hidden=!settings.hidden});
+    const toggle=settings.querySelector('#zaptecToggle');
+    toggle.checked=localStorage.getItem('elprisZaptecEnabled')==='1';
+    panel.hidden=!toggle.checked;
+    toggle.addEventListener('change',()=>{panel.hidden=!toggle.checked;localStorage.setItem('elprisZaptecEnabled',toggle.checked?'1':'0')});
+  } catch (err) { console.warn('Zaptec UI kunne ikke indlæses',err); }
+});
+</script>
+<script>
+const $=x=>document.getElementById(x),fmt=x=>Number(x).toLocaleString("da-DK",{minimumFractionDigits:2,maximumFractionDigits:2}),hh=x=>new Date(x).toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"}),col=x=>x<1?"green":x<2?"yellow":"red";
+function tick(){$("clock").textContent=new Date().toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"})}tick();setInterval(tick,10000);
+function radiusTariff(t){let m=t.getMonth()+1,h=t.getHours(),winter=(m>=10||m<=3);if(!winter){if(h<6)return .1327;if(h<17)return .1991;if(h<21)return .5176;return .1991}if(h<6)return .1327;if(h<17)return .3982;if(h<21)return 1.1945;return .3982}
+const suppliers={
+andel:{name:"Andel Energi · FlexEnergi",kwh:.1463,info:"14,63 øre/kWh i Andel-tillæg"},
+ok:{name:"OK · El Højt Forbrug",kwh:0,info:"0 øre/kWh i tillæg · 49 kr./md. abonnement (abonnement er ikke med i timeprisen)"},
+elforbundet:{name:"Vindstød · Elforbundet 2026",kwh:0,info:"0 øre/kWh i pristillæg · 0 kr./md. abonnement"}
+};
+function supplier(){return suppliers[$("supplier")?.value||"andel"]||suppliers.andel}
+function totalPrice(spot,t){const vat=1.25,energinet=.115,elafgift=.008;return spot*vat+radiusTariff(t)+(energinet+elafgift)*vat+supplier().kwh}
+
+const cars={buzz:{kwh:86},e2008:{kwh:46.3},q4:{kwh:77},e5008:{kwh:73}};let priceHours=[];
+function priceAt(t){let x=priceHours.find(h=>t>=h.t&&t<new Date(h.t.getTime()+3600000));return x?x.p:null}
+function chargeCost(start,e){let left=e,cost=0,t=new Date(start),g=0;while(left>.001&&g++<100){let p=priceAt(t);if(p==null)return null;let end=new Date(t);end.setHours(end.getHours()+1,0,0,0);let k=Math.min(left,10*(end-t)/3600000);cost+=k*p;left-=k;t=end}return left<=.001?cost:null}
+function dur(h){let m=Math.round(h*60);return Math.floor(m/60)+" t "+m%60+" min"}
+function updateCharging(){let car=cars[$("carselect").value],start=+$("startpct").value,end=+$("endpct").value;if(end<=start){$("rangeLabel").textContent=start+" → "+end+" %";$("chargeEnergy").textContent="Vælg højere slut-%";$("gridEnergy").textContent="–";$("chargeTime").textContent="–";$("chargeNow").textContent="–";$("chargeBest").textContent="Slutniveau skal være højere end startniveau";$("chargeSave").textContent="";return}let bat=car.kwh*((end-start)/100),grid=bat/.9,now=new Date(),nc=chargeCost(now,grid);$("rangeLabel").textContent=start+" → "+end+" %";$("chargeEnergy").textContent=fmt(bat)+" kWh";$("gridEnergy").textContent=fmt(grid)+" kWh";$("chargeTime").textContent=dur(grid/10);$("chargeNow").textContent=nc==null?"Mangler prisdata":fmt(nc)+" kr.";let first=new Date(now);first.setHours(first.getHours()+1,0,0,0);let best=null;for(let i=0;i<24;i++){let st=new Date(first.getTime()+i*3600000),c=chargeCost(st,grid);if(c!=null&&(!best||c<best.c))best={s:st,c}}if(best){$("chargeBest").textContent="Start kl. "+hh(best.s)+" · ca. "+fmt(best.c)+" kr.";$("chargeSave").textContent=nc!=null&&nc>best.c?"Spar ca. "+fmt(nc-best.c)+" kr. i forhold til at starte nu":"Det er allerede omtrent det billigste tidspunkt."}else{$("chargeBest").textContent="Ikke nok fremtidige prisdata endnu";$("chargeSave").textContent=""}}
+
+async function getForecast(){
+ try{
+  const r=await fetch("https://elpriser.org/api/forecast?area=DK2&mode=spot_ex",{cache:"no-store"});
+  if(!r.ok)throw Error("Prognosen er ikke tilgængelig");
+  const d=await r.json(),out=[];
+  for(const day of (d.days||[])){
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(day.date)||!Array.isArray(day.prices))continue;
+   for(const entry of day.prices){
+    if(!Number.isInteger(entry.hour)||entry.hour<0||entry.hour>23||!Number.isFinite(Number(entry.price))||entry.price===null)continue;
+    const t=new Date(day.date+"T"+String(entry.hour).padStart(2,"0")+":00:00");
+    if(Number.isFinite(t.getTime()))out.push({t,spot:Number(entry.price),forecast:day.type!=="actual",source:day.source||"model"});
+   }
+  }
+  return out;
+ }catch(e){return []}
+}
+// Gem 28 døgns pris- og prognosehistorik i IndexedDB. Fallback: localStorage.
+const DB_NAME="elprisHistoryV2", RETENTION=28*86400000;
+let dbPromise;
+function openHistoryDB(){if(!("indexedDB" in window))return Promise.resolve(null);if(!dbPromise)dbPromise=new Promise(resolve=>{try{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;db.createObjectStore("official",{keyPath:"ts"});db.createObjectStore("forecast",{keyPath:"ts"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null)}catch(e){resolve(null)}});return dbPromise}
+async function getArchive(){const db=await openHistoryDB();if(!db){try{return JSON.parse(localStorage.getItem("elprisHistoryFallbackV2")||'{"official":{},"forecast":{}}')}catch(e){return {official:{},forecast:{}}}}return new Promise(resolve=>{const tx=db.transaction(["official","forecast"],"readonly"),result={official:{},forecast:{}};for(const type of ["official","forecast"]){tx.objectStore(type).getAll().onsuccess=e=>{for(const x of e.target.result)result[type][String(x.ts)]=x}}tx.oncomplete=()=>resolve(result);tx.onerror=()=>resolve(result)})}
+async function storeArchive(archive){const cutoff=Date.now()-RETENTION;for(const type of ["official","forecast"])for(const key of Object.keys(archive[type]))if(Number(key)<cutoff)delete archive[type][key];const db=await openHistoryDB();if(!db){try{localStorage.setItem("elprisHistoryFallbackV2",JSON.stringify(archive))}catch(e){}return}await new Promise(resolve=>{const tx=db.transaction(["official","forecast"],"readwrite");for(const type of ["official","forecast"]){const store=tx.objectStore(type);store.clear();for(const item of Object.values(archive[type]))store.put(item)}tx.oncomplete=resolve;tx.onerror=resolve})}
+let currentArchive={official:{},forecast:{}},statsDays=7;
+function updateAccuracy(){
+ const now=Date.now(),start=now-statsDays*86400000,items=[];
+ for(const [key,actual] of Object.entries(currentArchive.official)){
+  const ts=Number(key),pred=currentArchive.forecast[key];
+  if(!pred||ts<start||ts>now||!(pred.savedAt<actual.publishedAt))continue;
+  const t=new Date(ts),a=totalPrice(actual.spot,t),f=totalPrice(pred.spot,t);
+  if(Number.isFinite(a)&&Number.isFinite(f))items.push({a,f});
+ }
+ const denom=items.reduce((v,x)=>v+Math.abs(x.a),0);
+ const absDiff=items.reduce((v,x)=>v+Math.abs(x.f-x.a),0);
+ const signedDiff=items.reduce((v,x)=>v+(x.f-x.a),0);
+ const pct=denom>.00001?100*absDiff/denom:null;
+ const signedPct=denom>.00001?100*signedDiff/denom:null;
+ const num=x=>x.toLocaleString("da-DK",{maximumFractionDigits:1});
+ const direction=signedPct===null?"Afventer sammenligning":Math.abs(signedPct)<.05?"I gennemsnit på niveau":signedPct>0?"Estimatet er i snit for højt":"Estimatet er i snit for lavt";
+ $("accuracyValue").textContent=pct===null?"Afventer data":num(pct)+" %";
+ $("accuracyDirection").textContent=direction;
+ $("accuracyDetails").innerHTML=
+ '<div class="statrow"><span>Periode</span><strong>'+statsDays+' dage</strong></div>'+
+ '<div class="statrow"><span>Sammenlignede timer</span><strong>'+items.length+'</strong></div>'+
+ '<div class="statrow"><span>Gennemsnitlig absolut forskel</span><strong>'+(items.length?fmt(absDiff/items.length)+' kr./kWh':'–')+'</strong></div>'+
+ '<div class="statrow"><span>Samlet absolut afvigelse</span><strong>'+(pct===null?'–':num(pct)+' %')+'</strong></div>'+
+ '<div class="statrow"><span>Gennemsnitlig retning</span><strong>'+(signedPct===null?'–':(signedPct>0?'+':'')+num(signedPct)+' %')+'</strong></div>'+
+ '<p style="font-size:12px;opacity:.8">'+direction+'. Positivt tal betyder, at prognosen var højere end den faktiske pris; negativt betyder lavere. Over- og undervurderinger kan udligne hinanden i retningsmålet.</p>';
+ $("stat7").style.borderColor=statsDays===7?"#38bdf8":"#64748b";
+ $("stat28").style.borderColor=statsDays===28?"#38bdf8":"#64748b";
+}
+$("accuracyBtn").addEventListener("click",()=>{$("accuracyDialog").showModal()});$("accuracyClose").addEventListener("click",()=>$("accuracyDialog").close());$("stat7").addEventListener("click",()=>{statsDays=7;updateAccuracy()});$("stat28").addEventListener("click",()=>{statsDays=28;updateAccuracy()});
+async function load(){try{let r=await fetch("./prices.json?"+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("prices.json mangler");let d=await r.json(),a=(d.hours||[]).map(x=>{let t=new Date(x.time),spot=+x.price;return {t,spot,p:totalPrice(spot,t)}}).sort((a,b)=>a.t-b.t);if(!a.length)throw Error("ingen priser");const forecastRows=await getForecast();let n=new Date();
+// Gem den senest observerede prognose indtil en officiel pris findes for timen.
+// Gem spotpris (ikke totalpris), så markøren følger brugerens valgte elselskab.
+const archive=await getArchive(),forecastArchive={},officialTimes=new Set(a.map(x=>x.t.getTime()));
+// Migrer tidligere gemte prognoser uden at ændre deres originale tidspunkt.
+try{const old=JSON.parse(localStorage.getItem("elprisForecastArchiveV1")||"{}");for(const [key,val] of Object.entries(old)){const ts=Number(key);if(!archive.forecast[key]&&Number.isFinite(ts)&&Number.isFinite(Number(val.spot))&&Number.isFinite(Number(val.savedAt)))archive.forecast[key]={ts,spot:Number(val.spot),savedAt:Number(val.savedAt),horizonHours:(ts-Number(val.savedAt))/3600000}}}catch(e){}
+for(const x of forecastRows){if(!x.forecast||officialTimes.has(x.t.getTime()))continue;const ts=x.t.getTime();if(ts>=n.getTime()-3600000&&ts<=n.getTime()+7*86400000){const key=String(ts);if(!archive.forecast[key]||!archive.official[key])archive.forecast[key]={ts,spot:x.spot,savedAt:n.getTime(),horizonHours:(ts-n.getTime())/3600000}}}
+for(const x of a){const ts=x.t.getTime(),key=String(ts);if(!archive.official[key])archive.official[key]={ts,spot:x.spot,publishedAt:n.getTime()};else archive.official[key].spot=x.spot}
+await storeArchive(archive);currentArchive=archive;
+for(const [key,val] of Object.entries(archive.forecast)){if(archive.official[key]&&val.savedAt<archive.official[key].publishedAt)forecastArchive[key]=val}
+updateAccuracy();
+let c=a.find(x=>n>=x.t&&n<new Date(x.t.getTime()+3600000))||a.find(x=>x.t>=n)||a[0],f=a.filter(x=>x.t>=new Date(n-3600000));$("hero").className="hero "+col(c.p);$("status").textContent="PRISDATA ONLINE";$("price").textContent=fmt(c.p);$("breakdown").textContent="Spot inkl. moms "+fmt(c.spot*1.25)+" kr. · "+supplier().name+" "+fmt(supplier().kwh)+" kr. · Radius "+fmt(radiusTariff(c.t))+" kr. · Energinet "+fmt(.115*1.25)+" kr. · elafgift "+fmt(.008*1.25)+" kr.";$("supplierinfo").textContent=supplier().info;$("advice").textContent=c.p<1?"GRØN – godt tidspunkt at bruge strøm":c.p<2?"GUL – okay, men der findes billigere timer":"RØD – vent hvis du kan";let q=[...f].sort((a,b)=>a.p-b.p)[0];$("cheap").textContent=q?hh(q.t)+" · "+fmt(q.p)+" kr.":"–";let g=f.find(x=>x.p<1);$("wash").textContent=c.p<1?"Kør nu":g?"Vent til "+hh(g.t):"Ingen grøn time fundet";let best;for(let i=0;i<=f.length-4;i++){let b=f.slice(i,i+4);if(b.every((x,j)=>!j||x.t-b[j-1].t===3600000)){let av=b.reduce((s,x)=>s+x.p,0)/4;if(!best||av<best.av)best={b,av}}}$("car").textContent=best?hh(best.b[0].t)+"–"+hh(new Date(best.b[3].t.getTime()+3600000))+" · "+fmt(best.av)+" kr.":"–";let cutoff=n.getTime()-72*3600000;let historyData=Object.values(archive.official).map(x=>({t:new Date(x.ts),spot:x.spot})).filter(x=>x.t.getTime()>=cutoff&&x.t.getTime()<=n.getTime()+48*3600000).sort((x,y)=>x.t-y.t);
+let combined=new Map(historyData.map(x=>[x.t.getTime(),{...x,forecast:false}]));
+for(const x of forecastRows){if(x.t.getTime()>=n.getTime()-3600000&&x.t.getTime()<=n.getTime()+7*86400000&&!combined.has(x.t.getTime()))combined.set(x.t.getTime(),x)}
+let shown=[...combined.values()].filter(x=>x.t.getTime()>=cutoff&&x.t.getTime()<=n.getTime()+7*86400000).sort((a,b)=>a.t-b.t).map(x=>({...x,p:totalPrice(x.spot,x.t)})),maxp=Math.max(...shown.map(x=>x.p),...shown.filter(x=>!x.forecast&&forecastArchive[String(x.t.getTime())]).map(x=>totalPrice(Number(forecastArchive[String(x.t.getTime())].spot),x.t)),1);const scroll=$('chartscroll'),oldLeft=scroll.scrollLeft,wasAtNow=!scroll.dataset.initialized;$("hours").innerHTML=shown.map(x=>{let height=Math.max(10,(x.p/maxp)*190);const saved=(!x.forecast&&forecastArchive[String(x.t.getTime())])?forecastArchive[String(x.t.getTime())]:null;
+const estimate=saved?totalPrice(Number(saved.spot),x.t):null;
+const marker=estimate!==null?`<span class="forecast-reference" title="Gemt estimat: ${fmt(estimate)} kr./kWh" style="bottom:${Math.max(10,(estimate/maxp)*190)}px"></span>`:"";
+return `<div class="h ${col(x.p)} ${x.forecast?'forecast':''} ${x.t.getTime()+3600000<=n.getTime()?'past':''}" data-forecast="${x.forecast?1:0}" data-spot="${x.spot}" data-time="${x.t.toISOString()}" style="height:${height}px;cursor:pointer">${marker}<div class="hprice">${fmt(x.p)}</div><div class="htime">${String(x.t.getHours()).padStart(2,"0")}</div></div>`}).join("");renderDayLabels();$("hours").querySelectorAll(".h").forEach(el=>el.addEventListener("click",()=>{$("hours").querySelectorAll(".h").forEach(b=>b.classList.remove("selected"));el.classList.add("selected");const t=new Date(el.dataset.time),spot=+el.dataset.spot,end=new Date(t.getTime()+3600000),savedForecast=el.dataset.forecast==="0"?forecastArchive[String(t.getTime())]:null;$("spotdetail").style.display="block";$("spotdetail").innerHTML="<strong>"+hh(t)+"–"+hh(end)+"</strong> · "+(el.dataset.forecast==="1"?"Estimeret spotpris":"Ren elpris")+": <strong>"+fmt(spot)+" kr./kWh</strong><br><span style=\"opacity:.7;font-size:12px\">"+(el.dataset.forecast==="1"?"Usikker prognose uden moms og tillæg":"Officiel spotpris uden moms og tillæg")+"</span>"+(savedForecast?"<br><span style=\"color:#38bdf8;font-size:12px\">Blå streg: tidligere prognose "+fmt(totalPrice(Number(savedForecast.spot),t))+" kr./kWh · forskel "+fmt(totalPrice(spot,t)-totalPrice(Number(savedForecast.spot),t))+" kr.</span>":"");}));const currentBar=[...$("hours").querySelectorAll(".h")].find(el=>{const t=new Date(el.dataset.time).getTime();return t<=n.getTime()&&t+3600000>n.getTime()});if(currentBar)currentBar.classList.add("current-hour");if(wasAtNow){scroll.dataset.initialized="1";requestAnimationFrame(()=>{if(currentBar)scroll.scrollLeft=Math.max(0,currentBar.offsetLeft-scroll.offsetLeft-18)})}else{scroll.scrollLeft=oldLeft}$("chartnote").textContent="Viser "+shown.length+" timer · Blå streg = tidligere gemt prognose · Grå = tidligere timer · Farvede = officielle priser · Skraverede = usikker prognose (kilde: elpriser.org). Historik gemmes lokalt.";$("err").innerHTML="";priceHours=a;updateCharging()}catch(e){$("status").textContent="PRISDATA OFFLINE";$("advice").textContent="Kør GitHub Action én gang";$("err").innerHTML='<div class="err">'+e.message+'</div>'}}
+function renderDayLabels(){
+ const holder=$("hours"),bars=[...holder.querySelectorAll(".h")];
+ holder.querySelector(".day-overlay")?.remove();
+ if(!bars.length)return;
+ const overlay=document.createElement("div");overlay.className="day-overlay";
+ const days=new Map();
+ for(const bar of bars){
+  const d=new Date(bar.dataset.time),key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const x=bar.offsetLeft,w=bar.offsetWidth;
+  if(!days.has(key))days.set(key,{date:d,left:x,right:x+w,firstHour:d.getHours()});
+  else days.get(key).right=x+w;
+ }
+ for(const day of days.values()){
+  if(day.firstHour===0){const firstBar=bars.find(b=>b.offsetLeft===day.left);const previousBar=firstBar?bars[bars.indexOf(firstBar)-1]:null;const boundary=previousBar?(previousBar.offsetLeft+previousBar.offsetWidth+day.left)/2:day.left;const line=document.createElement("span");line.className="day-divider";line.style.left=boundary+"px";overlay.appendChild(line)}
+  const label=document.createElement("span");label.className="day-title";
+  label.textContent=day.date.toLocaleDateString("da-DK",{weekday:"long",day:"numeric"});
+  label.style.left=((day.left+day.right)/2)+"px";
+  overlay.appendChild(label);
+ }
+ holder.appendChild(overlay);
+}
+function savePrefs(){try{localStorage.setItem("elprisPrefs",JSON.stringify({supplier:$("supplier").value,car:$("carselect").value,start:$("startpct").value,end:$("endpct").value}))}catch(e){}}
+function restorePrefs(){try{const p=JSON.parse(localStorage.getItem("elprisPrefs")||"{}");if(p.supplier&&suppliers[p.supplier])$("supplier").value=p.supplier;if(p.car&&cars[p.car])$("carselect").value=p.car;if([...$("startpct").options].some(o=>o.value==p.start))$("startpct").value=p.start;if([...$("endpct").options].some(o=>o.value==p.end))$("endpct").value=p.end}catch(e){}}
+$("backnow").addEventListener("click",()=>{const now=Date.now(),bar=[...$("hours").querySelectorAll(".h")].find(el=>{const t=new Date(el.dataset.time).getTime();return t<=now&&now<t+3600000});if(bar)$("chartscroll").scrollTo({left:Math.max(0,bar.offsetLeft-$("chartscroll").offsetLeft-18),behavior:"smooth"})});restorePrefs();load();setInterval(load,300000);
+$("supplier").addEventListener("change",()=>{savePrefs();load()});
+$("carselect").addEventListener("change",()=>{savePrefs();updateCharging()});
+$("startpct").addEventListener("change",()=>{savePrefs();updateCharging()});
+$("endpct").addEventListener("change",()=>{savePrefs();updateCharging()});
+let pullStartY=0,pullActive=false,pullTriggered=false;
+const pullEl=$("pullrefresh");
+function pullMsg(msg,top="0px"){pullEl.textContent=msg;pullEl.style.top=top}
+document.addEventListener("touchstart",e=>{
+  if(window.scrollY<=0&&e.touches.length===1){
+    pullStartY=e.touches[0].clientY;pullActive=true;pullTriggered=false;
+  }
+},{passive:true});
+document.addEventListener("touchmove",e=>{
+  if(!pullActive)return;
+  const d=e.touches[0].clientY-pullStartY;
+  if(d<=0){pullActive=false;pullEl.style.top="-58px";return}
+  if(d>25)pullMsg(d>=80?"↻ Slip for at opdatere":"↓ Træk ned for at opdatere",Math.min(0,-58+d*.7)+"px");
+  if(d>=80)pullTriggered=true;
+},{passive:true});
+document.addEventListener("touchend",async()=>{
+  if(!pullActive)return;
+  pullActive=false;
+  if(pullTriggered){
+    pullMsg("↻ Opdaterer priser…","0px");
+    try{await load();pullMsg("✓ Priser opdateret","0px")}
+    catch(e){pullMsg("Kunne ikke opdatere","0px")}
+    setTimeout(()=>pullEl.style.top="-58px",1000);
+  }else pullEl.style.top="-58px";
+  pullTriggered=false;
+},{passive:true});
+// Testudgave: ingen service worker, så den ikke caches som produktionsappen.
+
+// Hjælp til installation på hjemmeskærmen
+(()=>{
+const overlay=document.getElementById("installHelp"),opener=document.getElementById("helpOpen"),closer=document.getElementById("helpClose"),dialog=overlay.querySelector(".help-dialog");
+function closeHelp(){overlay.hidden=true;document.body.style.overflow="";opener.focus()}
+opener.addEventListener("click",()=>{overlay.hidden=false;document.body.style.overflow="hidden";closer.focus()});
+closer.addEventListener("click",closeHelp);
+overlay.addEventListener("click",e=>{if(e.target===overlay)closeHelp()});
+document.addEventListener("keydown",e=>{if(overlay.hidden)return;if(e.key==="Escape")closeHelp();if(e.key==="Tab"){const els=[closer];if(!e.shiftKey&&document.activeElement===els[els.length-1]){e.preventDefault();els[0].focus()}else if(e.shiftKey&&document.activeElement===els[0]){e.preventDefault();els[els.length-1].focus()}}});
+})();
+</script></body></html>
