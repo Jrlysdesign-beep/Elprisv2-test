@@ -198,9 +198,30 @@ window.addEventListener('DOMContentLoaded', function () {
           if(page===9)incomplete=true;
         }
       }
+      // Diagnose only: never treat unverified Zaptec energyDetails as hourly consumption.
+      // Compare both interpretations with the reported session energy, without exposing readings.
+      const energyDiagnostics={incremental:0,cumulative:0,ambiguous:0,unmatched:0,insufficient:0};
+      for(const {item} of entries){
+        const points=(item.energyDetails||[]).filter(p=>Number.isFinite(Date.parse(p.timestamp))&&Number.isFinite(p.energyKWh))
+          .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
+        if(points.length<2||!Number.isFinite(item.energyKWh)||item.energyKWh<=0){energyDiagnostics.insufficient++;continue;}
+        const unique=points.every((p,i)=>!i||Date.parse(p.timestamp)>Date.parse(points[i-1].timestamp));
+        if(!unique){energyDiagnostics.unmatched++;continue;}
+        const sum=points.reduce((n,p)=>n+p.energyKWh,0);
+        const delta=points[points.length-1].energyKWh-points[0].energyKWh;
+        const monotonic=points.every((p,i)=>!i||p.energyKWh>=points[i-1].energyKWh);
+        const tolerance=Math.max(.15,item.energyKWh*.02);
+        const incremental=Math.abs(sum-item.energyKWh)<=tolerance;
+        const cumulative=monotonic&&Math.abs(delta-item.energyKWh)<=tolerance;
+        if(incremental&&cumulative)energyDiagnostics.ambiguous++;
+        else if(incremental)energyDiagnostics.incremental++;
+        else if(cumulative)energyDiagnostics.cumulative++;
+        else energyDiagnostics.unmatched++;
+      }
       const diagnostic=document.createElement('p');
       diagnostic.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
       diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
+      diagnostic.textContent+=' Fortolkningstest (tolerance 2 % eller 0,15 kWh): '+energyDiagnostics.incremental+' passer med intervalforbrug, '+energyDiagnostics.cumulative+' passer med kumulative målinger, '+energyDiagnostics.ambiguous+' er tvetydige, '+energyDiagnostics.unmatched+' matcher ikke, '+energyDiagnostics.insufficient+' har for få punkter. Ingen priser beregnes ud fra punkterne endnu.';
       history.appendChild(diagnostic);
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
