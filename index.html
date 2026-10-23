@@ -1,4 +1,4 @@
-<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 15.3 – TEST</title>
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 15.4 – TEST</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
 select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
 .chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
@@ -106,8 +106,60 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecApiStatus" role="status" aria-live="polite" style="padding:12px;border-radius:12px;background:#0f172a;color:#cbd5e1;margin:12px 0">Serverforbindelse er ikke testet endnu.</div>
 <button type="button" id="zaptecTestApi" style="padding:12px 18px;border-radius:12px;background:#2563eb;color:white;border:1px solid #60a5fa;font-weight:700">Test forbindelse til server</button>
 <p style="font-size:12px;color:#94a3b8">Ingen adgangskode eller personlige data sendes ved testen.</p>
-</div></section><div class="footer">Version 15.3 · 23.10.2026 · Lavet af Jacob Rasmussen</div></div>
+<div id="zaptecLoginArea" hidden style="margin-top:20px">
+<form id="zaptecLoginForm" autocomplete="on" style="display:grid;gap:10px">
+<label for="zaptecEmail">E-mail til Zaptec</label>
+<input id="zaptecEmail" type="email" autocomplete="username" required maxlength="254" style="padding:13px;border-radius:10px;border:1px solid #64748b;background:#0f172a;color:white">
+<label for="zaptecPassword">Adgangskode</label>
+<input id="zaptecPassword" type="password" autocomplete="current-password" required style="padding:13px;border-radius:10px;border:1px solid #64748b;background:#0f172a;color:white">
+<button type="submit" style="padding:13px;border-radius:10px;border:0;background:#15803d;color:white;font-weight:700">Log ind på Zaptec</button>
+</form>
+<button id="zaptecLogout" type="button" hidden style="margin-top:12px;padding:10px;border-radius:10px;background:#334155;color:white">Log ud</button>
+<div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
+<div id="zaptecChargers"></div>
+</div>
+</div></section><div class="footer">Version 15.4 · 23.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
+// Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
+window.addEventListener('DOMContentLoaded', function () {
+  const api='https://elpris-zaptec-github.jrlysdesign.workers.dev';
+  const area=document.getElementById('zaptecLoginArea');
+  const form=document.getElementById('zaptecLoginForm');
+  const status=document.getElementById('zaptecLoginStatus');
+  const logout=document.getElementById('zaptecLogout');
+  const chargers=document.getElementById('zaptecChargers');
+  let session=null;
+  if(!area||!form)return;
+  fetch(api+'/api/zaptec/capabilities',{cache:'no-store'})
+    .then(r=>r.ok?r.json():Promise.reject(Error('API unavailable')))
+    .then(data=>{area.hidden=!data.loginReady;})
+    .catch(()=>{area.hidden=true;});
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    status.textContent='Logger ind hos Zaptec…';
+    const email=document.getElementById('zaptecEmail').value;
+    const password=document.getElementById('zaptecPassword').value;
+    try {
+      const response=await fetch(api+'/api/zaptec/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      document.getElementById('zaptecPassword').value='';
+      const data=await response.json();
+      if(!response.ok)throw Error(data.error||'Login mislykkedes');
+      session=data.session;
+      form.hidden=true;logout.hidden=false;
+      status.textContent='Logget ind. Henter ladere…';
+      const res=await fetch(api+'/api/zaptec/chargers',{headers:{Authorization:'Bearer '+session}});
+      const list=await res.json();
+      if(!res.ok)throw Error(list.error||'Kunne ikke hente ladere');
+      chargers.replaceChildren();
+      const title=document.createElement('h3');title.textContent='Dine ladere';chargers.appendChild(title);
+      if(!list.chargers?.length){const p=document.createElement('p');p.textContent='Ingen ladere fundet på kontoen.';chargers.appendChild(p);}
+      for(const charger of list.chargers||[]){const p=document.createElement('p');p.textContent=charger.name+' ('+charger.id+')';chargers.appendChild(p);}
+      status.textContent='Zaptec-forbindelse oprettet. Ladehistorik kommer i næste trin.';
+    } catch(error){status.textContent=error.message;session=null;form.hidden=false;logout.hidden=true;}
+    finally{document.getElementById('zaptecPassword').value='';}
+  });
+  logout.addEventListener('click',()=>{session=null;form.hidden=false;logout.hidden=true;chargers.replaceChildren();status.textContent='Du er logget ud.';});
+});
 // Sikker forbindelsestest: ingen loginoplysninger eller tokens.
 window.addEventListener('DOMContentLoaded', function () {
   const button=document.getElementById('zaptecTestApi');
