@@ -1,7 +1,7 @@
 // Historical DK2 spot prices for Zaptec test only. No personal Zaptec data is sent.
 // Energi Data Service: SpotPriceDKK is DKK/MWh, HourUTC is UTC without suffix.
 // Cache successful responses locally for 24 hours to avoid repeated upstream requests.
-const KEY='elprisZaptecHistoricalDK2V3';
+const KEY='elprisZaptecHistoricalDK2V4';
 export function parseHistoricalSpotRecords(records){
   if(!Array.isArray(records))throw Error('Ugyldigt prisdatasæt');
   const quarters=new Map();
@@ -21,9 +21,7 @@ export function parseHistoricalSpotRecords(records){
     byHour.get(hour).push(spot);
   }
   // Do not invent a full-hour price when one of the four quarters is missing.
-  return [...byHour].filter(([hour,values])=>values.length===4)
-    .map(([hour,values])=>({hour,spot:values.reduce((a,b)=>a+b,0)/4}))
-    .sort((a,b)=>a.hour-b.hour);
+  return [...quarters].map(([quarter,spot])=>({quarter,spot})).sort((a,b)=>a.quarter-b.quarter);
 }
 export async function fetchZaptecHistoricalSpot(start,end,fetcher=fetch,storage=localStorage){
   const first=Math.floor(start/86400000)*86400000;
@@ -49,8 +47,8 @@ export async function fetchZaptecHistoricalSpot(start,end,fetcher=fetch,storage=
     throw Error('Historiske spotpriser: HTTP '+response.status+(detail?' · '+detail:''));
   }
   const data=await response.json();
-  const rows=parseHistoricalSpotRecords(data.records).filter(p=>p.hour>=first&&p.hour<last);
-  if(!rows.length)throw Error('Ingen historiske DK2-timepriser returneret');
+  const rows=parseHistoricalSpotRecords(data.records).filter(p=>p.quarter>=first&&p.quarter<last);
+  if(!rows.length)throw Error('Ingen historiske DK2-kvarterspriser returneret');
   // An incomplete response is not silently treated as full coverage.
   if(data.total>data.records.length)throw Error('Historiske prisdata er ikke komplette');
   try{storage.setItem(KEY,JSON.stringify({id:cacheId,savedAt:Date.now(),rows}));}catch(e){}
