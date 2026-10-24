@@ -381,7 +381,7 @@ window.addEventListener('DOMContentLoaded', function () {
         if(!yearFolders.has(year)){
           const yearFolder=document.createElement('details');
           yearFolder.style.cssText='border:1px solid #64748b;border-radius:12px;margin-top:12px;padding:12px';
-          yearFolder.open=year===String(new Date().getFullYear());
+          yearFolder.open=false;
           const yearTitle=document.createElement('summary');
           yearTitle.style.cssText='font-weight:800;cursor:pointer;font-size:19px';
           yearTitle.textContent=year;
@@ -393,7 +393,7 @@ window.addEventListener('DOMContentLoaded', function () {
         if(!yearGroup.months.has(month)){
           const monthFolder=document.createElement('details');
           monthFolder.style.cssText='border-top:1px solid #64748b;margin-top:10px;padding:10px 0 0 8px';
-          monthFolder.open=year===String(new Date().getFullYear())&&month===String(new Date().getMonth()+1).padStart(2,'0');
+          monthFolder.open=false;
           const monthTitle=document.createElement('summary');
           monthTitle.style.cssText='font-weight:700;cursor:pointer;text-transform:capitalize';
           monthTitle.textContent=monthFormatter.format(new Date(item.startTime));
