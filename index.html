@@ -1,4 +1,4 @@
-<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 16.9 – TEST</title>
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 17.2 – TEST</title>
 <style>[hidden]{display:none!important}*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
 select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
 .chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
@@ -124,7 +124,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <p id="zaptecStatsNote" style="font-size:12px;color:#cbd5e1">Afventer Zaptec-login og ladehistorik.</p>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.9 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 17.2 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -376,6 +376,20 @@ window.addEventListener('DOMContentLoaded', function () {
         const parts=new Intl.DateTimeFormat('en-GB',{year:'numeric',month:'2-digit',timeZone:'Europe/Copenhagen'}).formatToParts(new Date(t));
         return {year:parts.find(p=>p.type==='year').value,month:parts.find(p=>p.type==='month').value};
       };
+      // Totals describe only the sessions actually loaded, not an entire historical year.
+      const makeTotals=()=>({kwh:0,cost:0,priced:0,count:0});
+      const addToTotals=(totals,item,estimate)=>{
+        totals.kwh+=item.energyKWh;totals.count++;
+        if(estimate?.status==='priced'){totals.cost+=estimate.cost;totals.priced++;}
+      };
+      const folderLabel=(title,totals)=>{
+        const energy=totals.kwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';
+        const price=totals.priced===totals.count
+          ?money(totals.cost)+' · estimeret'
+          :totals.priced>0?money(totals.cost)+' · delpris ('+totals.priced+'/'+totals.count+')'
+          :'Pris mangler';
+        return title+' · '+energy+' · '+price;
+      };
       for(const {item,estimate} of entries){
         const {year,month}=dateKey(item.startTime);
         if(!yearFolders.has(year)){
@@ -387,7 +401,7 @@ window.addEventListener('DOMContentLoaded', function () {
           yearTitle.textContent=year;
           yearFolder.appendChild(yearTitle);
           history.appendChild(yearFolder);
-          yearFolders.set(year,{folder:yearFolder,months:new Map()});
+          yearFolders.set(year,{folder:yearFolder,title:yearTitle,totals:makeTotals(),months:new Map()});
         }
         const yearGroup=yearFolders.get(year);
         if(!yearGroup.months.has(month)){
@@ -399,9 +413,14 @@ window.addEventListener('DOMContentLoaded', function () {
           monthTitle.textContent=monthFormatter.format(new Date(item.startTime));
           monthFolder.appendChild(monthTitle);
           yearGroup.folder.appendChild(monthFolder);
-          yearGroup.months.set(month,monthFolder);
+          yearGroup.months.set(month,{folder:monthFolder,title:monthTitle,totals:makeTotals()});
         }
-        const monthFolder=yearGroup.months.get(month);
+        const monthGroup=yearGroup.months.get(month);
+        addToTotals(yearGroup.totals,item,estimate);
+        addToTotals(monthGroup.totals,item,estimate);
+        yearGroup.title.textContent=folderLabel(year,yearGroup.totals);
+        monthGroup.title.textContent=folderLabel(monthFormatter.format(new Date(item.startTime)),monthGroup.totals);
+        const monthFolder=monthGroup.folder;
         const row=document.createElement('div');row.style.cssText='padding:13px 0;border-bottom:1px solid #ffffff22;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap';
         const left=document.createElement('div');const date=document.createElement('strong');date.textContent=new Date(item.startTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(date);
         const detail=document.createElement('div');detail.style.cssText='opacity:.75;font-size:13px;margin-top:4px';detail.textContent='Slut: '+new Date(item.endTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(detail);
