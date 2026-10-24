@@ -1,4 +1,4 @@
-<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 16.0 – TEST</title>
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 16.4 – TEST</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
 select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
 .chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
@@ -118,7 +118,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.3 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 16.4 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -320,295 +320,54 @@ window.addEventListener('DOMContentLoaded', function () {
           if(page===9)incomplete=true;
         }
       }
-      // Keep experimental diagnostics accessible without cluttering the normal charging history.
-      const approach=document.createElement('p');
-      approach.style.cssText='padding:12px;border:1px solid #ffffff33;border-radius:8px;font-size:13px;line-height:1.5';
-      approach.textContent='Ny retning: Vi arbejder på automatisk opsamling af Zaptec-live-målerstande til kvarterspriser. Funktionen er endnu ikke aktiv: Cloudflare skal først kunne hente og gemme data sikkert, også når appen er lukket. Historiske opladninger og de eksisterende prisestimater bevares.';
-      history.appendChild(approach);
-      const diagnosticsPanel=document.createElement('details');
-      diagnosticsPanel.style.cssText='margin:12px 0;padding:12px;border:1px solid #ffffff55;border-radius:8px';
-      const diagnosticsTitle=document.createElement('summary');
-      diagnosticsTitle.textContent='Avanceret Zaptec-diagnostik og prisforsøg (tryk for at åbne)';
-      diagnosticsPanel.appendChild(diagnosticsTitle);
-      history.appendChild(diagnosticsPanel);
-      // Read-only cadence audit for archived Zaptec readings. Timestamps only.
-      // This does not assert that archived energyDetails mirrors live meterValueInterval.
-      const cadence=document.createElement('details');
-      cadence.style.cssText='margin:12px 0;padding:12px;border:1px solid #ffffff55;border-radius:8px';
-      const cadenceSummary=document.createElement('summary');
-      cadenceSummary.textContent='Målediagnose · 15-minutters rapportering';
-      cadence.appendChild(cadenceSummary);
-      const ordered=[...entries].sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
-      const recent=ordered.filter(({item})=>Date.parse(item.startTime)>=Date.parse('2026-10-23T00:00:00Z'));
-      const older=ordered.filter(({item})=>Date.parse(item.startTime)<Date.parse('2026-10-23T00:00:00Z'));
-      const measure=(rows)=>{
-        const gaps=[];
-        for(const {item} of rows){
-          const times=(item.energyDetails||[]).map(p=>Date.parse(p.timestamp)).filter(Number.isFinite).sort((a,b)=>a-b);
-          for(let i=1;i<times.length;i++)if(times[i]>times[i-1])gaps.push(Math.round((times[i]-times[i-1])/60000));
-        }
-        return {gaps,quarters:gaps.filter(n=>n>=13&&n<=17).length,hours:gaps.filter(n=>n>=55&&n<=65).length};
-      };
-      const newStats=measure(recent),oldStats=measure(older);
+      const {estimateChargingSession}=await import('./zaptec-session-estimate.mjs?v=16.4');
+      const estimates=entries.map(entry=>estimateChargingSession(entry.item,zaptecQuarterSpots,
+        (spot,date)=>totalPrice(spot,date)));
+      entries.forEach((entry,i)=>{entry.estimate=estimates[i];});
+      const priced=estimates.filter(x=>x.status==='priced');
+      const estimatedTotal=priced.reduce((n,x)=>n+x.cost,0);
+      const estimatedKwh=priced.reduce((n,x)=>n+x.energyKWh,0);
+      const excludedMinutes=priced.reduce((n,x)=>n+x.excludedMinutes,0);
       const overview=document.createElement('p');
-      overview.textContent='Arkiverede målepunkter: '+recent.length+' opladninger startet fra 24.10.2026 (UTC), '+
-        newStats.gaps.length+' mellemrum, '+newStats.quarters+' omkring 15 min og '+newStats.hours+
-        ' omkring 60 min. Før datoen: '+older.length+' opladninger, '+oldStats.gaps.length+
-        ' mellemrum, '+oldStats.quarters+' omkring 15 min og '+oldStats.hours+' omkring 60 min.';
-      cadence.appendChild(overview);
-      const note=document.createElement('p');
-      note.textContent='Kun observationer fra arkiverede opladninger, ikke direkte live-målerdata. '+
-        'Manglende kvartersmålinger beviser ikke, at laderens indstilling er uændret. '+
-        'En ny opladning efter ændringsforsøget er nødvendig for at sammenligne. Ingen indstillinger ændres.';
-      cadence.appendChild(note);
-      for(const {item} of recent.slice(0,5)){
-        const points=(item.energyDetails||[]).map(p=>Date.parse(p.timestamp)).filter(Number.isFinite).sort((a,b)=>a-b);
-        const p=document.createElement('p');
-        const gaps=points.slice(1).map((t,i)=>Math.round((t-points[i])/60000));
-        const formatTime=t=>new Date(t).toLocaleTimeString('da-DK',{timeZone:'Europe/Copenhagen',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-        const boundary=t=>{const d=new Date(t);return d.getUTCMinutes()%15===0&&d.getUTCSeconds()===0?' [KVARTER]':'';};
-        const timestamps=points.map(t=>formatTime(t)+boundary(t)).join(' → ');
-        const sessionStart=Date.parse(item.startTime),sessionEnd=Date.parse(item.endTime);
-        const missing=[];
-        if(Number.isFinite(sessionStart)&&Number.isFinite(sessionEnd)&&sessionEnd>sessionStart){
-          for(let t=Math.ceil(sessionStart/900000)*900000;t<sessionEnd&&missing.length<100;t+=900000){
-            if(!points.some(p=>Math.abs(p-t)<=2000))missing.push(formatTime(t));
-          }
-        }
-        p.textContent='Opladning '+new Date(item.startTime).toLocaleString('da-DK')+
-          ': '+points.length+' punkter; mellemrum i minutter: '+(gaps.join(', ')||'ingen')+
-          '. Præcise tidspunkter (dansk tid): '+(timestamps||'ingen')+
-          '. Kvartersgrænser uden arkiveret punkt: '+(missing.join(', ')||'ingen')+
-          '. Manglende arkiverede punkter beviser ikke manglende interne målinger.';
-        cadence.appendChild(p);
-      }
-      diagnosticsPanel.appendChild(cadence);
-      // Diagnose only: never treat unverified Zaptec energyDetails as hourly consumption.
-      // Compare both interpretations with the reported session energy, without exposing readings.
-      const energyDiagnostics={incremental:0,cumulative:0,ambiguous:0,unmatched:0,insufficient:0};
-      for(const {item} of entries){
-        const points=(item.energyDetails||[]).filter(p=>Number.isFinite(Date.parse(p.timestamp))&&Number.isFinite(p.energyKWh))
-          .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
-        if(points.length<2||!Number.isFinite(item.energyKWh)||item.energyKWh<=0){energyDiagnostics.insufficient++;continue;}
-        const unique=points.every((p,i)=>!i||Date.parse(p.timestamp)>Date.parse(points[i-1].timestamp));
-        if(!unique){energyDiagnostics.unmatched++;continue;}
-        const sum=points.reduce((n,p)=>n+p.energyKWh,0);
-        const delta=points[points.length-1].energyKWh-points[0].energyKWh;
-        const monotonic=points.every((p,i)=>!i||p.energyKWh>=points[i-1].energyKWh);
-        const tolerance=Math.max(.15,item.energyKWh*.02);
-        const incremental=Math.abs(sum-item.energyKWh)<=tolerance;
-        const cumulative=monotonic&&Math.abs(delta-item.energyKWh)<=tolerance;
-        if(incremental&&cumulative)energyDiagnostics.ambiguous++;
-        else if(incremental)energyDiagnostics.incremental++;
-        else if(cumulative)energyDiagnostics.cumulative++;
-        else energyDiagnostics.unmatched++;
-      }
-      const diagnostic=document.createElement('p');
-      diagnostic.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
-      diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
-      diagnostic.textContent+=' Fortolkningstest (tolerance 2 % eller 0,15 kWh): '+energyDiagnostics.incremental+' passer med intervalforbrug, '+energyDiagnostics.cumulative+' passer med kumulative målinger, '+energyDiagnostics.ambiguous+' er tvetydige, '+energyDiagnostics.unmatched+' matcher ikke, '+energyDiagnostics.insufficient+' har for få punkter. Ingen priser beregnes ud fra punkterne endnu.';
-      diagnosticsPanel.appendChild(diagnostic);
-      // Aggregated interval-direction diagnostic; no changes to price calculations.
-      try {
-        const {diagnoseIntervalDirection}=await import('./zaptec-interval-direction-diagnostic.mjs?v=16.0');
-        const d=diagnoseIntervalDirection(entries.map(x=>x.item));
-        const p=document.createElement('p');
-        p.textContent='Intervalretningskontrol: '+d.usable+' af '+d.sessions+' analyseret. Første punkt med positiv energi: '+d.firstPositive+'. Sidste punkt med positiv energi: '+d.lastPositive+'. Begge tidsgrænser tæt på start og slut: '+d.bothNear+'. Retningen er ikke bekræftet; ingen priser beregnes.';
-        diagnosticsPanel.appendChild(p);
-      } catch(error) {
-        const p=document.createElement('p');
-        p.textContent='Intervalretningskontrol fejlede: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
-      // Diagnose of clock-hour alignment and midnight crossings; no pricing changes.
-      try {
-        const {diagnoseClockHours}=await import('./zaptec-clock-hour-diagnostic.mjs?v=16.0');
-        const d=diagnoseClockHours(entries.map(x=>x.item));
-        const p=document.createElement('p');
-        p.textContent='Klokketime- og midnatskontrol: '+d.usable+' af '+d.sessions+
-          ' opladninger analyseret. '+d.clockAligned+' af '+d.clockTotal+
-          ' målepunkter ligger på hele klokketimer (UTC/DK samme minut). '+
-          d.midnightUsable+' af '+d.midnight+' opladninger over midnat kan analyseres. '+
-          d.intervalsCrossingMidnight+' måleintervaller krydser en UTC-datogrænse. '+
-          d.firstZero+' starter med nul energi, '+d.lastPositive+
-          ' slutter med positiv energi. '+d.gapsOver90Minutes+
-          ' mellemrum over 90 minutter. Tidsretningen er fortsat ikke endeligt bekræftet; ingen nye priser beregnes.';
-        diagnosticsPanel.appendChild(p);
-      } catch(error) {
-        const p=document.createElement('p');
-        p.textContent='Klokketime- og midnatskontrol fejlede: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
-      // Detailed structure validation; no new cost calculation.
-      try {
-        const {diagnoseHourBoundaries}=await import('./zaptec-hour-boundary-validation.mjs?v=16.0');
-        const d=diagnoseHourBoundaries(entries.map(x=>x.item));
-        const p=document.createElement('p');
-        p.textContent='Detaljeret timegrænsekontrol: '+d.usable+' af '+d.sessions+
-          ' analyseret. '+d.interiorOnHour+' af '+d.interior+
-          ' indre målepunkter ligger præcist på hele timer; '+d.nonHourInterior+
-          ' gør ikke. Mellemrum: '+d.shortIntervals+' under 45 min., '+
-          d.normalIntervals+' mellem 45 og 90 min., '+d.longIntervals+
-          ' over 90 min. Af de lange mellemrum slutter '+d.longWithEnergy+
-          ' med positiv energi og '+d.longWithoutEnergy+' med nul. '+
-          d.totalMatches+' opladninger stemmer med summen af målepunkter, '+
-          d.totalMismatch+' afviger. '+d.inferredEndCompatible+
-          ' opladninger er strukturelt forenelige med intervalslut-hypotesen uden lange huller eller skæve indre timer. '+
-          'UTC-døgnskift med positiv energi: '+d.midnightWithEnergy+
-          ' af '+d.midnightIntervals+'. Dette beviser ikke tidsretningen, og prisberegningen er uændret.';
-        diagnosticsPanel.appendChild(p);
-      } catch(error) {
-        const p=document.createElement('p');
-        p.textContent='Detaljeret timegrænsekontrol fejlede: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
-      // Privatlivssikker tidsdiagnose. Viser kun antal og median, aldrig rå data.
-      try {
-        const {diagnoseTimestampBoundaries}=await import('./zaptec-timestamp-diagnostics.mjs?v=15.9');
-        const result=diagnoseTimestampBoundaries(entries.map(x=>x.item));
-        const p=document.createElement('p');
-        p.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
-        p.textContent='Tidsstempelkontrol: '+result.sessions+' opladninger kan analyseres. Første punkt tæt på ladestart: '+result.firstNearStart+'. Sidste punkt tæt på ladeslut: '+result.lastNearEnd+'. Begge: '+result.bothNear+'. Ingen af delene: '+result.neitherNear+'. Median mellem målepunkter: '+(result.typicalSpacingMinutes===null?'ukendt':result.typicalSpacingMinutes+' minutter')+'. '+result.invalid+' kan ikke analyseres. Dette er kun en diagnose og fastslår ikke, om energi hører til før eller efter tidsstemplet.';
-        diagnosticsPanel.appendChild(p);
-      } catch (error) { const p=document.createElement('p');p.textContent='Tidsstempelkontrol kunne ikke indlæses ('+(error instanceof TypeError?'modul/netværksfejl':error instanceof SyntaxError?'syntaksfejl':'beregningsfejl')+'). Prøv at genindlæse testappen. Ingen loginoplysninger vises.';diagnosticsPanel.appendChild(p); }
-      // Experimental comparison only: existing estimates remain untouched.
-      try {
-        const {priceZaptecSessionConservatively}=await import('./zaptec-conservative-pricing.mjs?v=16.0');
-        const hourly=zaptecPriceHours.filter(p=>p&&p.t instanceof Date&&!p.forecast&&
-          Number.isFinite(p.t.getTime())&&Number.isFinite(p.spot))
-          .map(p=>({hour:p.t.getTime(),price:totalPrice(p.spot,p.t),forecast:false}));
-        const results=entries.map(x=>priceZaptecSessionConservatively(x.item,hourly));
-        const good=results.filter(x=>x.status==='priced');
-        const positive=good.filter(x=>x.kwh>0);
-        const sumKwh=good.reduce((n,x)=>n+x.kwh,0);
-        const sumCost=good.reduce((n,x)=>n+x.cost,0);
-        const reasons={};
-        results.filter(x=>x.status!=='priced').forEach(x=>{reasons[x.reason]=(reasons[x.reason]||0)+1;});
-        const p=document.createElement('p');
-        p.style.cssText='padding:12px;border:1px solid #ffffff55;border-radius:8px;line-height:1.5';
-        p.textContent='FORSØG · Forsigtig timepris fra Zaptec: '+good.length+' af '+results.length+
-          ' opladninger kan beregnes fuldt ud ('+positive.length+' med positiv energi). '+
-          sumKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh · '+
-          sumCost.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+
-          '. Ikke beregnet: '+Object.entries(reasons).map(([k,v])=>v+' × '+({
-            'missing-prices':'manglende historiske priser',
-            'cross-hour-interval':'energi over flere klokketimer',
-            'long-positive-interval':'langt måleinterval med energi',
-            'energy-mismatch':'energisum afviger',
-            'uncertain-boundaries':'usikre start/slutpunkter',
-            'missing-readings':'manglende målepunkter',
-            'invalid-readings':'ugyldige målepunkter',
-            'invalid-session':'ugyldig opladning'
-          }[k]||k)).join(', ')+
-          '. Kun komplette, entydige intervaller med faktiske timepriser medtages. '+
-          'Beregningen bygger på en endnu ikke endeligt bekræftet intervalslut-fortolkning og er ikke en faktura.';
-        diagnosticsPanel.appendChild(p);
-        entries.forEach((x,i)=>{x.experimental=results[i];});
-      } catch(error) {
-        const p=document.createElement('p');
-        p.textContent='Forsigtig Zaptec-prisberegning kunne ikke indlæses: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
-      // Quarter-hour spot-price diagnostic: no invented quarter-hour consumption.
-      if(zaptecQuarterSpots.length){
-        const p=document.createElement('p');
-        p.style.cssText='padding:10px;border:1px solid #ffffff55;border-radius:8px;font-size:13px';
-        p.textContent='15-minutters elpriser: '+zaptecQuarterSpots.length+
-          ' faktiske DK2-kvarterspriser indlæst. Timevisningen er fortsat et gennemsnit. '+
-          'Vi kan først beregne præcis kvarterspris for opladning, når Zaptec leverer målinger, der kan knyttes entydigt til hvert kvarter. '+
-          'Laderens aktuelle rapporteringsinterval er endnu ikke verificeret; se status under Dine ladere.';
-        diagnosticsPanel.appendChild(p);
-      }
-      // Partial prices are explicitly not full-session prices.
-      try {
-        const {priceZaptecSessionPartially}=await import('./zaptec-partial-pricing.mjs?v=16.0');
-        const hourly=zaptecPriceHours.filter(p=>p&&p.t instanceof Date&&!p.forecast&&
-          Number.isFinite(p.t.getTime())&&Number.isFinite(p.spot))
-          .map(p=>({hour:p.t.getTime(),price:totalPrice(p.spot,p.t),forecast:false}));
-        const results=entries.map(x=>priceZaptecSessionPartially(x.item,hourly));
-        entries.forEach((x,i)=>{x.partialPrice=results[i];});
-        const totalKwh=results.reduce((n,x)=>n+x.pricedKwh,0);
-        const missingKwh=results.reduce((n,x)=>n+x.unpricedKwh,0);
-        const totalCost=results.reduce((n,x)=>n+x.cost,0);
-        const partialCount=results.filter(x=>x.status==='partial').length;
-        const fullCount=results.filter(x=>x.status==='priced').length;
-        const intervalCount=results.reduce((n,x)=>n+x.pricedIntervals,0);
-        const reasons={};
-        results.forEach(x=>Object.entries(x.reasons).forEach(([k,v])=>{reasons[k]=(reasons[k]||0)+v;}));
-        const p=document.createElement('p');
-        p.style.cssText='padding:12px;border:1px solid #ffffff55;border-radius:8px;line-height:1.5';
-        p.textContent='FORSØG · Delvis timepris fra Zaptec: '+totalKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+
-          ' kWh med beregnelig timepris i '+intervalCount+' intervaller: '+
-          totalCost.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+
-          ' (KUN DELPRIS). '+missingKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+
-          ' kWh uden beregnet pris. '+fullCount+' opladninger med fuld dækning, '+
-          partialCount+' med delvis dækning. Usikre intervaller: '+
-          Object.entries(reasons).map(([k,v])=>v+' × '+({
-            'missing-prices':'manglende historiske priser',
-            'cross-hour-interval':'krydser timegrænse',
-            'long-positive-interval':'lange intervaller med energi',
-            'energy-mismatch':'energisum afviger',
-            'uncertain-boundaries':'usikre tidsgrænser',
-            'missing-readings':'manglende målepunkter',
-            'invalid-readings':'ugyldige målepunkter',
-            'invalid-session':'ugyldig opladning'
-          }[k]||k)).join(', ')+
-          '. Ingen usikre kWh fordeles eller prissættes. Intervalslut-hypotesen er stadig ikke endeligt bekræftet.';
-        diagnosticsPanel.appendChild(p);
-      } catch(error) {
-        const p=document.createElement('p');
-        p.textContent='Delvis Zaptec-prisberegning kunne ikke indlæses: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
-      // Read-only diagnostic: inspect each unpriced interval, including its implied mean power.
-      try {
-        const {auditZaptecIntervals}=await import('./zaptec-interval-audit.mjs?v=16.0');
-        const audit=auditZaptecIntervals(entries.map(x=>x.item));
-        const box=document.createElement('details');
-        box.style.cssText='margin:12px 0;padding:12px;border:1px solid #ffffff55;border-radius:8px';
-        const summary=document.createElement('summary');
-        summary.textContent='Undersøg de '+audit.intervals.length+' usikre ladeintervaller ('+
-          audit.totalKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh)';
-        box.appendChild(summary);
-        const note=document.createElement('p');
-        note.textContent='Tider og kWh kommer fra Zaptecs arkiverede målepunkter. Gennemsnitseffekt er kun kWh divideret med tid; den viser ikke, hvornår strømmen faktisk blev brugt. Mulige pauser kan ikke fastslås ud fra disse data.';
-        box.appendChild(note);
-        for(const x of audit.intervals){
-          const p=document.createElement('p');
-          p.style.cssText='padding:8px 0;border-bottom:1px solid #ffffff22;font-size:13px';
-          p.textContent=new Date(x.from).toLocaleString('da-DK')+' → '+new Date(x.to).toLocaleString('da-DK')+
-            ' · '+x.durationMinutes+' min · '+x.kwh.toLocaleString('da-DK',{maximumFractionDigits:3})+
-            ' kWh · '+x.averageKw.toLocaleString('da-DK',{maximumFractionDigits:2})+
-            ' kW gennemsnit · '+(x.reason==='long-positive-interval'?'langt interval':'krydser timegrænse');
-          box.appendChild(p);
-        }
-        diagnosticsPanel.appendChild(box);
-        const extra=document.createElement('p');
-        extra.style.cssText='font-size:13px;opacity:.85';
-        extra.textContent='Flere Zaptec-data: Arkiveret historik indeholder kun de viste energipunkter. Hyppigere live-målinger kan muligvis opsamles fremover, men ændring af laderens rapporteringsinterval kræver særskilt kontrol af API-rettigheder og din godkendelse. Status for laderens målerinterval vises ovenfor under Dine ladere. En accepteret ændring er ikke nødvendigvis bekræftet.';
-        diagnosticsPanel.appendChild(extra);
-      }catch(error){
-        const p=document.createElement('p');
-        p.textContent='Intervaldiagnose kunne ikke indlæses: '+String(error.message||error);
-        diagnosticsPanel.appendChild(p);
-      }
+      overview.style.cssText='padding:12px;border:1px solid #64748b;border-radius:10px;line-height:1.5';
+      overview.textContent='Ny beregning med kvarterspriser: '+priced.length+' af '+entries.length+
+        ' opladninger · '+estimatedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+
+        ' kWh · '+estimatedTotal.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+
+        ' estimeret. Udeladt verificerbar nultid: '+Math.round(excludedMinutes)+' min. '+
+        'Nulperioder udelades kun ved sammenhængende, valide energipunkter; manglende målinger er ikke nulforbrug.';
+      history.appendChild(overview);
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
-      for(const {item,sessionCost,experimental,partialPrice} of entries){
+      for(const {item,estimate} of entries){
         const row=document.createElement('div');row.style.cssText='padding:13px 0;border-bottom:1px solid #ffffff22;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap';
         const left=document.createElement('div');const date=document.createElement('strong');date.textContent=new Date(item.startTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(date);
         const detail=document.createElement('div');detail.style.cssText='opacity:.75;font-size:13px;margin-top:4px';detail.textContent='Slut: '+new Date(item.endTime).toLocaleString('da-DK',{dateStyle:'medium',timeStyle:'short'});left.appendChild(detail);
         const right=document.createElement('div');right.style.textAlign='right';const kwh=document.createElement('strong');kwh.textContent=item.energyKWh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';right.appendChild(kwh);
-        const price=document.createElement('div');price.style.cssText='font-size:13px;margin-top:4px';price.textContent=sessionCost===null?'Pris mangler':money(sessionCost)+' · estimeret';right.appendChild(price);if(item&&experimental){const e=document.createElement('div');e.style.cssText='font-size:12px;margin-top:4px;opacity:.9';e.textContent=experimental.status==='priced'?'Forsigtig Zaptec-test: '+money(experimental.cost):'Forsigtig Zaptec-test: ikke beregnet';right.appendChild(e);}if(partialPrice){const p=document.createElement('div');p.style.cssText='font-size:12px;margin-top:4px';p.textContent='Delvis Zaptec-test: '+partialPrice.pricedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh / '+money(partialPrice.cost)+' · '+partialPrice.unpricedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh uden pris';right.appendChild(p);}
+        const price=document.createElement('div');price.style.cssText='font-size:13px;margin-top:4px';
+        price.textContent=estimate?.status==='priced'
+          ?money(estimate.cost)+' · estimeret · '+estimate.averagePrice.toLocaleString('da-DK',{maximumFractionDigits:2})+' kr./kWh'
+          :'Pris mangler (historiske kvarterspriser eller målinger)';
+        right.appendChild(price);
+        if(estimate?.status==='priced'&&estimate.excludedMinutes>0){
+          const pause=document.createElement('div');pause.style.cssText='font-size:12px;color:#86efac';
+          pause.textContent=Math.round(estimate.excludedMinutes)+' min. med 0 kWh udeladt';
+          right.appendChild(pause);
+        }
         row.append(left,right);history.appendChild(row);
       }
       const summary=document.createElement('p');summary.style.fontWeight='800';
       summary.textContent=count+' opladninger · '+energyTotal.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';
       history.insertBefore(summary,history.children[1]||null);
       const cost=document.createElement('p');
-      cost.textContent=pricedKwh>0?'Estimeret pris for '+pricedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh med kendte timepriser: '+costTotal.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+' (jævnt fordelt forbrug)':'Pris kan endnu ikke beregnes: mangler historiske timepriser.';
+      cost.textContent=priced.length
+        ?'Estimeret samlet ladepris: '+estimatedTotal.toLocaleString('da-DK',{style:'currency',currency:'DKK'})+
+          ' for '+estimatedKwh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh ('+
+          priced.length+' af '+entries.length+' opladninger med fuld prisdækning).'
+        :'Pris kan ikke beregnes endnu: historiske kvarterspriser mangler.';
       history.insertBefore(cost,history.children[2]||null);
-      if(incomplete||pricedKwh<energyTotal){const note=document.createElement('p');note.textContent='Bemærk: Prisen dækker ikke alle opladninger. Manglende historiske timepriser er ikke erstattet med gæt.';history.appendChild(note);}
+      if(priced.length<entries.length){const note=document.createElement('p');
+        note.textContent='Bemærk: Ikke alle opladninger har komplette historiske kvarterspriser. Manglende priser erstattes ikke med gæt.';
+        history.appendChild(note);}
       status.textContent='Ladehistorik hentet fra Zaptec.';
     } catch(error){status.textContent=error.message;session=null;form.hidden=false;logout.hidden=true;}
     finally{document.getElementById('zaptecPassword').value='';}
