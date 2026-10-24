@@ -367,7 +367,7 @@ window.addEventListener('DOMContentLoaded', function () {
         const right=document.createElement('div');right.style.textAlign='right';const kwh=document.createElement('strong');kwh.textContent=item.energyKWh.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';right.appendChild(kwh);
         const price=document.createElement('div');price.style.cssText='font-size:13px;margin-top:4px';
         price.textContent=estimate?.status==='priced'
-          ?money(estimate.cost)+' · estimeret · '+estimate.averagePrice.toLocaleString('da-DK',{maximumFractionDigits:2})+' kr./kWh'
+          ?(item.energyKWh===0?'0,00 kr. · ingen forbrug':money(estimate.cost)+' · estimeret · '+estimate.averagePrice.toLocaleString('da-DK',{maximumFractionDigits:2})+' kr./kWh')
           :'Pris mangler (historiske kvarterspriser eller målinger)';
         right.appendChild(price);
         if(estimate?.status==='priced'&&estimate.excludedMinutes>0){
