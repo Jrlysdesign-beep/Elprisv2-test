@@ -118,7 +118,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.1 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 16.2 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -354,8 +354,21 @@ window.addEventListener('DOMContentLoaded', function () {
         const points=(item.energyDetails||[]).map(p=>Date.parse(p.timestamp)).filter(Number.isFinite).sort((a,b)=>a-b);
         const p=document.createElement('p');
         const gaps=points.slice(1).map((t,i)=>Math.round((t-points[i])/60000));
+        const formatTime=t=>new Date(t).toLocaleTimeString('da-DK',{timeZone:'Europe/Copenhagen',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        const boundary=t=>{const d=new Date(t);return d.getUTCMinutes()%15===0&&d.getUTCSeconds()===0?' [KVARTER]':'';};
+        const timestamps=points.map(t=>formatTime(t)+boundary(t)).join(' → ');
+        const sessionStart=Date.parse(item.startTime),sessionEnd=Date.parse(item.endTime);
+        const missing=[];
+        if(Number.isFinite(sessionStart)&&Number.isFinite(sessionEnd)&&sessionEnd>sessionStart){
+          for(let t=Math.ceil(sessionStart/900000)*900000;t<sessionEnd&&missing.length<100;t+=900000){
+            if(!points.some(p=>Math.abs(p-t)<=2000))missing.push(formatTime(t));
+          }
+        }
         p.textContent='Opladning '+new Date(item.startTime).toLocaleString('da-DK')+
-          ': '+points.length+' punkter; mellemrum i minutter: '+(gaps.join(', ')||'ingen');
+          ': '+points.length+' punkter; mellemrum i minutter: '+(gaps.join(', ')||'ingen')+
+          '. Præcise tidspunkter (dansk tid): '+(timestamps||'ingen')+
+          '. Kvartersgrænser uden arkiveret punkt: '+(missing.join(', ')||'ingen')+
+          '. Manglende arkiverede punkter beviser ikke manglende interne målinger.';
         cadence.appendChild(p);
       }
       history.appendChild(cadence);
