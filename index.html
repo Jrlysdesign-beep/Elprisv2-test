@@ -118,7 +118,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.0 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 16.1 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -177,6 +177,7 @@ window.addEventListener('DOMContentLoaded', function () {
         live.type='button';live.textContent='Læs live-målinger';
         live.style.marginLeft='8px';
         const liveStatus=document.createElement('p');
+        const liveDetails=document.createElement('pre');liveDetails.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px';
         liveStatus.textContent='Ingen live-aflæsning endnu. Viser kun tidsstempler, ikke måleværdier.';
         let previousSnapshot=null;
         live.onclick=async()=>{
@@ -201,11 +202,20 @@ window.addEventListener('DOMContentLoaded', function () {
               ' · Ændrede tidsstempler siden forrige aflæsning: '+(previousSnapshot?changed.length:'første aflæsning')+
               '. Tidsstempler: '+samples.slice(0,12).map(s=>s.id+'='+String(s.timestamp??'ukendt')).join('; ')+
               '. Gentag senere for at sammenligne. Dette viser ikke automatisk energiforbrug pr. kvarter.';
+            liveDetails.textContent=previousSnapshot?
+              'Ændrede observationer (ID · før → efter · tidsforskel):\n'+
+              (changed.map(s=>{
+                const old=previousSnapshot.find(p=>p.id===s.id);
+                const minutes=(Date.parse(s.timestamp)-Date.parse(old.timestamp))/60000;
+                return s.id+' · '+(old.timestamp||'?')+' → '+(s.timestamp||'?')+
+                  ' · '+(Number.isFinite(minutes)?minutes.toFixed(1)+' min':'ukendt');
+              }).join('\n')||'Ingen ændringer'):
+              'Startmåling: '+samples.length+' observationer. Gentag aflæsning efter 15–20 minutter.';
             previousSnapshot=samples;
           }catch(error){liveStatus.textContent='Live-kontrol mislykkedes: '+String(error.message||error);}
           finally{live.disabled=false;}
         };
-        wrap.append(live,liveStatus);
+        wrap.append(live,liveStatus,liveDetails);
 
         read.onclick=async()=>{
           read.disabled=true;message.textContent='Læser Zaptec-indstilling…';
