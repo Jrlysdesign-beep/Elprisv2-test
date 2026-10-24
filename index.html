@@ -118,7 +118,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.2 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 16.3 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -320,6 +320,17 @@ window.addEventListener('DOMContentLoaded', function () {
           if(page===9)incomplete=true;
         }
       }
+      // Keep experimental diagnostics accessible without cluttering the normal charging history.
+      const approach=document.createElement('p');
+      approach.style.cssText='padding:12px;border:1px solid #ffffff33;border-radius:8px;font-size:13px;line-height:1.5';
+      approach.textContent='Ny retning: Vi arbejder på automatisk opsamling af Zaptec-live-målerstande til kvarterspriser. Funktionen er endnu ikke aktiv: Cloudflare skal først kunne hente og gemme data sikkert, også når appen er lukket. Historiske opladninger og de eksisterende prisestimater bevares.';
+      history.appendChild(approach);
+      const diagnosticsPanel=document.createElement('details');
+      diagnosticsPanel.style.cssText='margin:12px 0;padding:12px;border:1px solid #ffffff55;border-radius:8px';
+      const diagnosticsTitle=document.createElement('summary');
+      diagnosticsTitle.textContent='Avanceret Zaptec-diagnostik og prisforsøg (tryk for at åbne)';
+      diagnosticsPanel.appendChild(diagnosticsTitle);
+      history.appendChild(diagnosticsPanel);
       // Read-only cadence audit for archived Zaptec readings. Timestamps only.
       // This does not assert that archived energyDetails mirrors live meterValueInterval.
       const cadence=document.createElement('details');
@@ -371,7 +382,7 @@ window.addEventListener('DOMContentLoaded', function () {
           '. Manglende arkiverede punkter beviser ikke manglende interne målinger.';
         cadence.appendChild(p);
       }
-      history.appendChild(cadence);
+      diagnosticsPanel.appendChild(cadence);
       // Diagnose only: never treat unverified Zaptec energyDetails as hourly consumption.
       // Compare both interpretations with the reported session energy, without exposing readings.
       const energyDiagnostics={incremental:0,cumulative:0,ambiguous:0,unmatched:0,insufficient:0};
@@ -396,18 +407,18 @@ window.addEventListener('DOMContentLoaded', function () {
       diagnostic.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
       diagnostic.textContent='Kontrol af Zaptec-timemålinger: '+sessionsWithDetails+' af '+count+' opladninger har tidsstemplede energipunkter ('+detailPoints+' punkter i alt). '+sessionsWithoutDetails+' opladninger mangler sådanne punkter. Ingen personlige data vises. Dette bekræfter ikke endnu, om punkterne er timefordelte eller kumulative.';
       diagnostic.textContent+=' Fortolkningstest (tolerance 2 % eller 0,15 kWh): '+energyDiagnostics.incremental+' passer med intervalforbrug, '+energyDiagnostics.cumulative+' passer med kumulative målinger, '+energyDiagnostics.ambiguous+' er tvetydige, '+energyDiagnostics.unmatched+' matcher ikke, '+energyDiagnostics.insufficient+' har for få punkter. Ingen priser beregnes ud fra punkterne endnu.';
-      history.appendChild(diagnostic);
+      diagnosticsPanel.appendChild(diagnostic);
       // Aggregated interval-direction diagnostic; no changes to price calculations.
       try {
         const {diagnoseIntervalDirection}=await import('./zaptec-interval-direction-diagnostic.mjs?v=16.0');
         const d=diagnoseIntervalDirection(entries.map(x=>x.item));
         const p=document.createElement('p');
         p.textContent='Intervalretningskontrol: '+d.usable+' af '+d.sessions+' analyseret. Første punkt med positiv energi: '+d.firstPositive+'. Sidste punkt med positiv energi: '+d.lastPositive+'. Begge tidsgrænser tæt på start og slut: '+d.bothNear+'. Retningen er ikke bekræftet; ingen priser beregnes.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Intervalretningskontrol fejlede: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Diagnose of clock-hour alignment and midnight crossings; no pricing changes.
       try {
@@ -422,11 +433,11 @@ window.addEventListener('DOMContentLoaded', function () {
           d.firstZero+' starter med nul energi, '+d.lastPositive+
           ' slutter med positiv energi. '+d.gapsOver90Minutes+
           ' mellemrum over 90 minutter. Tidsretningen er fortsat ikke endeligt bekræftet; ingen nye priser beregnes.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Klokketime- og midnatskontrol fejlede: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Detailed structure validation; no new cost calculation.
       try {
@@ -445,11 +456,11 @@ window.addEventListener('DOMContentLoaded', function () {
           ' opladninger er strukturelt forenelige med intervalslut-hypotesen uden lange huller eller skæve indre timer. '+
           'UTC-døgnskift med positiv energi: '+d.midnightWithEnergy+
           ' af '+d.midnightIntervals+'. Dette beviser ikke tidsretningen, og prisberegningen er uændret.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Detaljeret timegrænsekontrol fejlede: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Privatlivssikker tidsdiagnose. Viser kun antal og median, aldrig rå data.
       try {
@@ -458,8 +469,8 @@ window.addEventListener('DOMContentLoaded', function () {
         const p=document.createElement('p');
         p.style.cssText='font-size:13px;line-height:1.5;padding:10px;border:1px solid #ffffff33;border-radius:8px';
         p.textContent='Tidsstempelkontrol: '+result.sessions+' opladninger kan analyseres. Første punkt tæt på ladestart: '+result.firstNearStart+'. Sidste punkt tæt på ladeslut: '+result.lastNearEnd+'. Begge: '+result.bothNear+'. Ingen af delene: '+result.neitherNear+'. Median mellem målepunkter: '+(result.typicalSpacingMinutes===null?'ukendt':result.typicalSpacingMinutes+' minutter')+'. '+result.invalid+' kan ikke analyseres. Dette er kun en diagnose og fastslår ikke, om energi hører til før eller efter tidsstemplet.';
-        history.appendChild(p);
-      } catch (error) { const p=document.createElement('p');p.textContent='Tidsstempelkontrol kunne ikke indlæses ('+(error instanceof TypeError?'modul/netværksfejl':error instanceof SyntaxError?'syntaksfejl':'beregningsfejl')+'). Prøv at genindlæse testappen. Ingen loginoplysninger vises.';history.appendChild(p); }
+        diagnosticsPanel.appendChild(p);
+      } catch (error) { const p=document.createElement('p');p.textContent='Tidsstempelkontrol kunne ikke indlæses ('+(error instanceof TypeError?'modul/netværksfejl':error instanceof SyntaxError?'syntaksfejl':'beregningsfejl')+'). Prøv at genindlæse testappen. Ingen loginoplysninger vises.';diagnosticsPanel.appendChild(p); }
       // Experimental comparison only: existing estimates remain untouched.
       try {
         const {priceZaptecSessionConservatively}=await import('./zaptec-conservative-pricing.mjs?v=16.0');
@@ -491,12 +502,12 @@ window.addEventListener('DOMContentLoaded', function () {
           }[k]||k)).join(', ')+
           '. Kun komplette, entydige intervaller med faktiske timepriser medtages. '+
           'Beregningen bygger på en endnu ikke endeligt bekræftet intervalslut-fortolkning og er ikke en faktura.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
         entries.forEach((x,i)=>{x.experimental=results[i];});
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Forsigtig Zaptec-prisberegning kunne ikke indlæses: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Quarter-hour spot-price diagnostic: no invented quarter-hour consumption.
       if(zaptecQuarterSpots.length){
@@ -506,7 +517,7 @@ window.addEventListener('DOMContentLoaded', function () {
           ' faktiske DK2-kvarterspriser indlæst. Timevisningen er fortsat et gennemsnit. '+
           'Vi kan først beregne præcis kvarterspris for opladning, når Zaptec leverer målinger, der kan knyttes entydigt til hvert kvarter. '+
           'Laderens aktuelle rapporteringsinterval er endnu ikke verificeret; se status under Dine ladere.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Partial prices are explicitly not full-session prices.
       try {
@@ -543,11 +554,11 @@ window.addEventListener('DOMContentLoaded', function () {
             'invalid-session':'ugyldig opladning'
           }[k]||k)).join(', ')+
           '. Ingen usikre kWh fordeles eller prissættes. Intervalslut-hypotesen er stadig ikke endeligt bekræftet.';
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       } catch(error) {
         const p=document.createElement('p');
         p.textContent='Delvis Zaptec-prisberegning kunne ikke indlæses: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       // Read-only diagnostic: inspect each unpriced interval, including its implied mean power.
       try {
@@ -571,15 +582,15 @@ window.addEventListener('DOMContentLoaded', function () {
             ' kW gennemsnit · '+(x.reason==='long-positive-interval'?'langt interval':'krydser timegrænse');
           box.appendChild(p);
         }
-        history.appendChild(box);
+        diagnosticsPanel.appendChild(box);
         const extra=document.createElement('p');
         extra.style.cssText='font-size:13px;opacity:.85';
         extra.textContent='Flere Zaptec-data: Arkiveret historik indeholder kun de viste energipunkter. Hyppigere live-målinger kan muligvis opsamles fremover, men ændring af laderens rapporteringsinterval kræver særskilt kontrol af API-rettigheder og din godkendelse. Status for laderens målerinterval vises ovenfor under Dine ladere. En accepteret ændring er ikke nødvendigvis bekræftet.';
-        history.appendChild(extra);
+        diagnosticsPanel.appendChild(extra);
       }catch(error){
         const p=document.createElement('p');
         p.textContent='Intervaldiagnose kunne ikke indlæses: '+String(error.message||error);
-        history.appendChild(p);
+        diagnosticsPanel.appendChild(p);
       }
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
