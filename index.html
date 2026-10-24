@@ -1,4 +1,4 @@
-<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 16.4 – TEST</title>
+<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Elpris"><link rel="manifest" href="./manifest.webmanifest"><title>Elpris 16.5 – TEST</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.w{max-width:900px;margin:auto;padding:18px}header{display:flex;justify-content:space-between}.t{font-size:32px;font-weight:900}.muted{opacity:.65}.hero,.card{background:#1e293b;border-radius:22px;padding:20px;margin-top:14px}.hero{text-align:center;padding:28px}.green{background:#15803d}.yellow{background:#ca8a04}.red{background:#b91c1c}.price{font-size:64px;font-weight:900}.advice{font-size:23px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.label{opacity:.65}.val{font-size:20px;font-weight:800;margin-top:7px}.hours{display:flex;align-items:flex-end;gap:5px;height:285px;padding:30px 2px 34px;overflow-x:auto}.h{flex:1 1 0;min-width:0;position:relative;border-radius:9px 9px 3px 3px;text-align:center;font-weight:800;min-height:18px}.hprice{position:absolute;bottom:9px;left:50%;transform:translateX(-50%) rotate(-90deg);transform-origin:center;font-size:12px;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}.htime{position:absolute;bottom:-23px;left:50%;transform:translateX(-50%);font-size:11px;line-height:1;white-space:nowrap;color:#cbd5e1}.err{background:#7f1d1d;padding:12px;border-radius:12px;margin-top:12px}
 select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-size:17px;font-weight:700}
 .chargegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
@@ -93,14 +93,15 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2 style="margin:0">🔌 Min Zaptec</h2><span style="font-size:12px;border:1px solid #64748b;border-radius:20px;padding:6px 10px;color:#cbd5e1">TEST · Ingen forbindelse</span></div>
 <p style="color:#cbd5e1;line-height:1.5">Her får du overblik over opladning og udgifter, når din Zaptec-konto er tilsluttet. Der vises ingen opdigtede målinger.</p>
-<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px">
-<div style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Seneste 24 timer</div><div class="val">– kWh</div><div style="opacity:.7;margin-top:6px">– kr.</div></div>
-<div style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Denne måned</div><div class="val">– kWh</div><div style="opacity:.7;margin-top:6px">– kr.</div></div>
-<div style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Sidste hele måned</div><div class="val">– kWh</div><div style="opacity:.7;margin-top:6px">– kr.</div></div>
-<div style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">År til dato</div><div class="val">– kWh</div><div style="opacity:.7;margin-top:6px">– kr.</div></div>
+<div id="zaptecStats" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px">
+<div class="zaptecStat" data-period="day" style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Seneste 24 timer</div><div class="val">– kWh</div><div class="cost" style="opacity:.7;margin-top:6px">– kr.</div></div>
+<div class="zaptecStat" data-period="month" style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Denne måned</div><div class="val">– kWh</div><div class="cost" style="opacity:.7;margin-top:6px">– kr.</div></div>
+<div class="zaptecStat" data-period="previous" style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">Sidste hele måned</div><div class="val">– kWh</div><div class="cost" style="opacity:.7;margin-top:6px">– kr.</div></div>
+<div class="zaptecStat" data-period="year" style="padding:16px;border-radius:14px;background:#0f172a"><div class="label">År til dato</div><div class="val">– kWh</div><div class="cost" style="opacity:.7;margin-top:6px">– kr.</div></div>
 </div>
-<div style="margin-top:14px;padding:16px;border-radius:14px;background:#0f172a"><div class="label">Gennemsnit pr. måned · seneste 12 måneder</div><div class="val">– kWh / – kr.</div></div>
-<div style="margin-top:14px;padding:16px;border-radius:14px;background:#0f172a"><div class="label">Gennemsnitlig ladepris</div><div class="val">– kr./kWh</div></div>
+<div id="zaptecAverageMonth" style="margin-top:14px;padding:16px;border-radius:14px;background:#0f172a"><div class="label">Gennemsnit pr. måned · seneste 12 måneder</div><div class="val">– kWh / – kr.</div></div>
+<div id="zaptecAveragePrice" style="margin-top:14px;padding:16px;border-radius:14px;background:#0f172a"><div class="label">Gennemsnitlig ladepris</div><div class="val">– kr./kWh</div></div>
+<p id="zaptecStatsNote" style="font-size:12px;color:#cbd5e1">Afventer Zaptec-login og ladehistorik.</p>
 <h3 style="margin-top:26px">Forbind din lader</h3>
 <p style="color:#cbd5e1">Vi har nu en separat Cloudflare-server. Du kan teste forbindelsen herunder. Zaptec-login åbnes først, når sikker håndtering af brugersessioner er på plads.</p>
 <div id="zaptecApiStatus" role="status" aria-live="polite" style="padding:12px;border-radius:12px;background:#0f172a;color:#cbd5e1;margin:12px 0">Serverforbindelse er ikke testet endnu.</div>
@@ -118,7 +119,7 @@ select{width:100%;margin-top:10px;padding:13px 14px;border:0;border-radius:12px;
 <div id="zaptecLoginStatus" role="status" aria-live="polite" style="margin-top:12px"></div>
 <div id="zaptecChargers"></div><div id="zaptecHistory" aria-live="polite" style="margin-top:16px"></div>
 </div>
-</div></section><div class="footer">Version 16.4 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
+</div></section><div class="footer">Version 16.5 · 24.10.2026 · Lavet af Jacob Rasmussen</div></div>
 <script>
 // Zaptec-login aktiveres kun når Cloudflare bekræfter sikker sessionsnøgle.
 window.addEventListener('DOMContentLoaded', function () {
@@ -336,6 +337,27 @@ window.addEventListener('DOMContentLoaded', function () {
         ' estimeret. Udeladt verificerbar nultid: '+Math.round(excludedMinutes)+' min. '+
         'Nulperioder udelades kun ved sammenhængende, valide energipunkter; manglende målinger er ikke nulforbrug.';
       history.appendChild(overview);
+      const {summarizeCharging}=await import('./zaptec-summary.mjs?v=16.5');
+      const statistics=summarizeCharging(entries);
+      const kwhText=n=>n.toLocaleString('da-DK',{maximumFractionDigits:2})+' kWh';
+      const krText=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
+      for(const period of ['day','month','previous','year']){
+        const tile=document.querySelector('#zaptecStats [data-period="'+period+'"]');
+        if(!tile)continue;
+        const s=statistics[period];
+        tile.querySelector('.val').textContent=kwhText(s.kwh);
+        tile.querySelector('.cost').textContent=s.complete?krText(s.cost):s.pricedKwh>0?krText(s.cost)+' · delpris':'Pris mangler';
+      }
+      const rolling=statistics.rolling;
+      const avg=document.querySelector('#zaptecAverageMonth .val');
+      const avgPrice=document.querySelector('#zaptecAveragePrice .val');
+      // 30 days of history is insufficient to claim a 12-month average.
+      if(avg)avg.textContent='– kWh / – kr. (kræver 12 måneders historik)';
+      if(avgPrice)avgPrice.textContent=rolling.pricedKwh>0
+        ?(rolling.cost/rolling.pricedKwh).toLocaleString('da-DK',{maximumFractionDigits:2})+' kr./kWh · kendte priser'
+        :'– kr./kWh';
+      const statsNote=document.getElementById('zaptecStatsNote');
+      if(statsNote)statsNote.textContent='Zaptec-historik: seneste 30 dage. Denne måned, sidste måned og år til dato viser kun registrerede opladninger inden for de hentede 30 dage. Beløb mærket delpris dækker ikke hele energiforbruget. Gennemsnit over 12 måneder afventer længere historik.';
       entries.sort((a,b)=>Date.parse(b.item.startTime)-Date.parse(a.item.startTime));
       const money=n=>n.toLocaleString('da-DK',{style:'currency',currency:'DKK'});
       for(const {item,estimate} of entries){
